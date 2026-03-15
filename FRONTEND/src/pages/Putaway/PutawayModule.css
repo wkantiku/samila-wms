@@ -1,0 +1,156 @@
+/* Putaway Module — reuses wms-module base + rcv-modal styles from global */
+
+/* Summary Cards */
+.pa-summary-row {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 18px;
+  flex-wrap: wrap;
+}
+
+.pa-summary-card {
+  flex: 1;
+  min-width: 90px;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 8px;
+  padding: 12px 10px;
+  text-align: center;
+  cursor: pointer;
+  transition: background 0.2s, border-color 0.2s;
+}
+.pa-summary-card:hover   { background: rgba(255,255,255,0.06); }
+.pa-summary-card.active  { background: rgba(0,229,255,0.07); border-color: rgba(0,229,255,0.35); }
+
+.pa-sum-count {
+  font-size: 22px;
+  font-weight: 800;
+  line-height: 1;
+  margin-bottom: 4px;
+}
+.pa-sum-label {
+  font-size: 10px;
+  color: #5a8fa8;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+}
+
+/* Scan tab */
+.pa-scan {
+  padding: 8px 0;
+}
+.scan-container {
+  max-width: 640px;
+}
+.scan-input-row {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+.scan-input-row .barcode-input {
+  flex: 1;
+}
+
+/* Scan Result Card */
+.scan-result-card {
+  background: rgba(0, 229, 255, 0.05);
+  border: 1px solid rgba(0, 229, 255, 0.2);
+  border-radius: 10px;
+  padding: 18px;
+}
+.scan-result-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 14px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid rgba(0,229,255,0.12);
+}
+.scan-result-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+  margin-bottom: 16px;
+}
+.scan-result-grid > div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.sr-label {
+  font-size: 10px;
+  color: #5a8fa8;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.sr-val {
+  font-size: 13px;
+  color: #cce4ef;
+  font-weight: 600;
+}
+
+.pa-complete-btn {
+  background: rgba(0, 204, 136, 0.15);
+  color: #00CC88;
+  border: 1px solid rgba(0, 204, 136, 0.4);
+  padding: 9px 24px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  width: 100%;
+  transition: background 0.2s;
+}
+.pa-complete-btn:hover { background: rgba(0, 204, 136, 0.28); }
+
+/* Location Map */
+.pa-locations { padding: 8px 0; }
+
+.pa-loc-legend {
+  display: flex;
+  gap: 18px;
+  margin-bottom: 16px;
+  font-size: 12px;
+  color: #5a8fa8;
+}
+.loc-dot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  margin-right: 5px;
+  vertical-align: middle;
+}
+
+.pa-loc-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+  gap: 10px;
+}
+
+.pa-loc-cell {
+  position: relative;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 8px;
+  padding: 10px 10px 8px;
+  cursor: pointer;
+  transition: background 0.2s;
+  min-height: 70px;
+}
+.pa-loc-cell:hover { background: rgba(255,255,255,0.06); }
+
+.pa-loc-name {
+  font-size: 12px;
+  font-weight: 700;
+  margin-bottom: 3px;
+}
+
+.loc-status-dot {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+}

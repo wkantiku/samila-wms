@@ -1,0 +1,78 @@
+/* Receiving Module - Dark Theme */
+
+.receiving-list .controls { display: flex; gap: 10px; margin-bottom: 16px; flex-wrap: wrap; }
+
+.action-btn {
+  padding: 5px 9px; border: none; border-radius: 4px;
+  cursor: pointer; font-size: 13px; margin-right: 4px;
+  background: rgba(255,255,255,0.05);
+  color: #7aafc8;
+  transition: background 0.2s;
+}
+.action-btn:hover { background: rgba(0,188,212,0.15); color: #00E5FF; }
+
+.scan-container, .qc-form {
+  max-width: 600px; padding: 22px;
+  background: #0d2b3e;
+  border: 1px solid rgba(0,188,212,0.12);
+  border-radius: 6px;
+  position: relative; overflow: hidden;
+}
+.scan-container::before, .qc-form::before {
+  content: ''; position: absolute; top: 0; left: 0; right: 0;
+  height: 2px; background: linear-gradient(90deg, #00BCD4, transparent);
+}
+
+.scan-container h2, .qc-form h2 { font-size: 16px; font-weight: 700; color: #a0c8dc; margin-bottom: 16px; }
+
+.barcode-input {
+  width: 100%; padding: 12px;
+  font-size: 16px; font-family: inherit;
+  background: rgba(255,255,255,0.05);
+  border: 2px solid rgba(0,188,212,0.3);
+  border-radius: 6px; color: #cce4ef;
+  margin-bottom: 16px;
+}
+.barcode-input:focus { outline: none; border-color: #00BCD4; box-shadow: 0 0 0 3px rgba(0,188,212,0.1); }
+.barcode-input::placeholder { color: #3a6a82; }
+
+.scanned-items h3 { font-size: 13px; font-weight: 700; color: #7aafc8; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 12px; }
+
+/* Modal */
+.rcv-modal-overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,0.65);
+  display: flex; align-items: center; justify-content: center; z-index: 1000;
+}
+.rcv-modal-box {
+  background: #0d2233; border: 1px solid rgba(0,188,212,0.25);
+  border-radius: 12px; width: 90%; max-width: 540px;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.6);
+}
+.rcv-modal-box.rcv-modal-sm { max-width: 380px; }
+.rcv-modal-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 18px 22px 14px; border-bottom: 1px solid rgba(0,188,212,0.12);
+}
+.rcv-modal-header h2 { margin: 0; font-size: 15px; color: #cce4ef; font-weight: 700; }
+.rcv-modal-close { background: none; border: none; color: #4a7a90; font-size: 18px; cursor: pointer; padding: 0 4px; line-height: 1; }
+.rcv-modal-close:hover { color: #FF6B6B; }
+.rcv-modal-body { padding: 18px 22px; }
+.rcv-modal-footer { padding: 14px 22px 18px; display: flex; justify-content: flex-end; gap: 10px; border-top: 1px solid rgba(0,188,212,0.08); }
+
+.rcv-form-group { display: flex; flex-direction: column; margin-bottom: 14px; }
+.rcv-form-group label { font-size: 11px; font-weight: 700; color: #5a8fa8; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px; }
+.rcv-form-group input, .rcv-form-group select {
+  padding: 9px 12px; background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(0,188,212,0.2); border-radius: 6px;
+  font-size: 13px; color: #cce4ef; font-family: inherit;
+}
+.rcv-form-group input:focus, .rcv-form-group select:focus { outline: none; border-color: #00BCD4; box-shadow: 0 0 0 3px rgba(0,188,212,0.1); }
+.rcv-form-row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.rcv-form-error { background: rgba(255,100,100,0.08); border: 1px solid rgba(255,100,100,0.25); border-radius: 6px; padding: 9px 12px; color: #FF8888; font-size: 12px; margin-top: 4px; }
+
+.rcv-save-btn { padding: 9px 20px; background: linear-gradient(135deg, #00A8CC, #0087B3); border: none; border-radius: 6px; color: white; font-size: 13px; font-weight: 700; cursor: pointer; }
+.rcv-save-btn:hover { box-shadow: 0 4px 14px rgba(0,168,204,0.4); }
+.rcv-cancel-btn { padding: 9px 20px; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.12); border-radius: 6px; color: #7a9fb5; font-size: 13px; font-weight: 600; cursor: pointer; }
+.rcv-cancel-btn:hover { background: rgba(255,255,255,0.1); }
+.rcv-danger-btn { padding: 9px 20px; background: rgba(255,100,100,0.15); border: 1px solid rgba(255,100,100,0.35); border-radius: 6px; color: #FF6B6B; font-size: 13px; font-weight: 700; cursor: pointer; }
+.rcv-danger-btn:hover { background: rgba(255,100,100,0.3); }

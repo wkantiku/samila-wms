@@ -1,0 +1,50 @@
+name: BB WMS — Security Scan
+
+on:
+  push:
+    branches: [ main, master ]
+  schedule:
+    - cron: '0 2 * * 1'  # ทุกวันจันทร์ 02:00
+
+jobs:
+
+  # ── Scan Python dependencies ──────────────────────
+  scan-python:
+    name: Scan Python (Safety)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install & Scan
+        run: |
+          pip install safety
+          cd BACKEND
+          safety check -r requirements.txt --output text || true
+
+  # ── Scan Node dependencies ────────────────────────
+  scan-node:
+    name: Scan Node (npm audit)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Audit
+        run: |
+          cd FRONTEND
+          npm audit --audit-level=high || true
+
+  # ── Scan Secrets in code ──────────────────────────
+  scan-secrets:
+    name: Scan Secrets (Gitleaks)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

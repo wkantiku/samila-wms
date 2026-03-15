@@ -1,0 +1,58 @@
+# ── Python ──────────────────────────────────────
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+venv/
+env/
+.env
+.env.*
+!.env.example
+*.egg-info/
+dist/
+build/
+*.spec
+
+# ── Node / React ─────────────────────────────────
+node_modules/
+FRONTEND/build/
+FRONTEND/.env
+FRONTEND/.env.local
+FRONTEND/.env.production
+npm-debug.log*
+yarn-error.log
+
+# ── Database ──────────────────────────────────────
+*.db
+*.sqlite
+*.sqlite3
+DATABASE/*.sql
+
+# ── Secrets / Keys ────────────────────────────────
+*.pem
+*.key
+*.cert
+*.p12
+secrets/
+
+# ── Docker ────────────────────────────────────────
+.docker/
+
+# ── IDE ───────────────────────────────────────────
+.vscode/settings.json
+.idea/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# ── Logs ──────────────────────────────────────────
+*.log
+logs/
+
+# ── Build / Dist ──────────────────────────────────
+BUILD/dist/
+DIST/
+*.exe
+*.ico

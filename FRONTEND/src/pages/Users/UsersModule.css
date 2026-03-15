@@ -1,0 +1,223 @@
+/* Users Summary */
+.users-summary {
+  display: flex; gap: 12px; margin-bottom: 18px; flex-wrap: wrap;
+}
+.users-stat {
+  background: #0d2b3e; border: 1px solid rgba(0,188,212,0.12);
+  border-radius: 8px; padding: 14px 20px; text-align: center; min-width: 90px;
+  position: relative; overflow: hidden;
+}
+.users-stat::before { content:''; position:absolute; top:0; left:0; right:0; height:2px; background: linear-gradient(90deg, #00BCD4, transparent); }
+.users-stat-value { font-size: 24px; font-weight: 700; line-height: 1.1; }
+.users-stat-label { font-size: 10px; color: #5a8fa8; text-transform: uppercase; letter-spacing: 0.5px; margin-top: 4px; }
+
+/* Filters */
+.filter-select {
+  padding: 8px 12px;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(0,188,212,0.2);
+  border-radius: 6px; font-size: 13px; color: #cce4ef;
+  font-family: inherit; cursor: pointer;
+}
+.filter-select option { background: #0d2b3e; }
+.filter-select:focus { outline: none; border-color: #00BCD4; }
+
+/* Table */
+.users-table-wrap { overflow-x: auto; }
+.row-num { color: #3a6a82; font-size: 11px; }
+.mono { font-family: 'Courier New', monospace; font-size: 12px; color: #00E5FF; }
+.muted { color: #3a6a82; font-size: 11px; }
+.empty-row { text-align: center; color: #3a6a82; padding: 32px; font-style: italic; }
+
+.user-name-cell { display: flex; align-items: center; gap: 10px; }
+.user-avatar {
+  width: 30px; height: 30px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 13px; font-weight: 700; flex-shrink: 0;
+}
+
+.role-badge {
+  padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 700;
+  border: 1px solid;
+}
+
+.status-toggle {
+  padding: 4px 12px; border-radius: 20px; font-size: 11px; font-weight: 700;
+  cursor: pointer; border: none; transition: all 0.2s;
+}
+.status-toggle.active   { background: rgba(0,204,136,0.12); color: #00CC88; }
+.status-toggle.inactive { background: rgba(255,107,107,0.1); color: #FF6B6B; }
+
+.icon-btn { padding: 5px 9px; border: none; border-radius: 4px; cursor: pointer; font-size: 13px; margin-right: 4px; background: rgba(255,255,255,0.05); color: #7aafc8; transition: all 0.2s; }
+.icon-btn:hover       { background: rgba(0,188,212,0.15); color: #00E5FF; }
+.icon-btn.delete:hover { background: rgba(255,107,107,0.15); color: #FF6B6B; }
+
+/* Roles Grid */
+.roles-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 14px;
+}
+
+.role-card {
+  background: #0d2b3e; border: 1px solid rgba(0,188,212,0.12);
+  border-top-width: 3px; border-radius: 8px; padding: 18px;
+}
+
+.role-card-header { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+.role-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+.role-card-header h3 { font-size: 15px; font-weight: 700; flex: 1; margin: 0; }
+.role-count { font-size: 11px; color: #5a8fa8; background: rgba(255,255,255,0.06); padding: 2px 8px; border-radius: 10px; }
+
+.role-perm { font-size: 11px; color: #5a8fa8; margin-bottom: 14px; font-style: italic; }
+
+.role-users { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 14px; min-height: 30px; }
+.role-user-chip {
+  display: flex; align-items: center; gap: 6px;
+  padding: 4px 10px; border-radius: 20px;
+  background: rgba(255,255,255,0.05);
+  font-size: 11px; color: #b0cdd8;
+}
+.chip-avatar { width: 18px; height: 18px; border-radius: 50%; font-size: 9px; font-weight: 700; display: flex; align-items: center; justify-content: center; }
+.role-empty { font-size: 11px; color: #3a6a82; font-style: italic; }
+
+.module-perms { display: flex; flex-wrap: wrap; gap: 5px; }
+.perm-tag { padding: 3px 8px; border-radius: 4px; font-size: 10px; font-weight: 600; }
+.perm-tag.yes { background: rgba(0,204,136,0.1); color: #00CC88; }
+.perm-tag.no  { background: rgba(255,255,255,0.04); color: #3a6a82; }
+
+/* Modal */
+.modal-overlay {
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,0.65);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 1000; padding: 20px;
+}
+
+.modal-box {
+  background: #0d2b3e;
+  border: 1px solid rgba(0,188,212,0.2);
+  border-radius: 10px; width: 100%; max-width: 620px;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.6);
+  overflow: hidden;
+}
+.modal-sm { max-width: 400px; }
+
+.modal-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 18px 22px; border-bottom: 1px solid rgba(0,188,212,0.12);
+  background: rgba(0,0,0,0.2);
+}
+.modal-header h2 { font-size: 16px; font-weight: 700; color: #ffffff; margin: 0; }
+.modal-close { background: none; border: none; color: #5a8fa8; font-size: 18px; cursor: pointer; padding: 0; line-height: 1; }
+.modal-close:hover { color: #FF6B6B; }
+
+.modal-body { padding: 20px 22px; display: flex; flex-direction: column; gap: 0; }
+
+.form-row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+.modal-footer {
+  display: flex; justify-content: flex-end; gap: 10px;
+  padding: 16px 22px; border-top: 1px solid rgba(0,188,212,0.1);
+  background: rgba(0,0,0,0.15);
+}
+
+.cancel-btn {
+  padding: 9px 18px;
+  background: rgba(255,255,255,0.06); color: #7aafc8;
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 6px; font-size: 13px; font-weight: 600; cursor: pointer;
+}
+.cancel-btn:hover { background: rgba(255,255,255,0.1); }
+
+.delete-confirm-btn {
+  padding: 9px 18px;
+  background: linear-gradient(135deg, #cc3333, #aa2222);
+  color: white; border: none; border-radius: 6px;
+  font-size: 13px; font-weight: 700; cursor: pointer;
+}
+.delete-confirm-btn:hover { box-shadow: 0 4px 14px rgba(200,50,50,0.4); }
+
+/* Permissions Checkboxes in Form */
+.perm-label-row {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 4px;
+}
+.perm-label-row label { margin-bottom: 0; }
+
+.perm-reset-btn {
+  font-size: 11px; color: #5a8fa8;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(0,188,212,0.15);
+  border-radius: 4px; padding: 3px 9px;
+  cursor: pointer; transition: all 0.2s;
+}
+.perm-reset-btn:hover { color: #00BCD4; border-color: rgba(0,188,212,0.4); }
+
+.perm-checkboxes {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 6px;
+  padding: 12px;
+  background: rgba(0,0,0,0.2);
+  border: 1px solid rgba(0,188,212,0.12);
+  border-radius: 6px;
+  margin-top: 4px;
+}
+
+.perm-checkbox-item {
+  display: flex; align-items: center; gap: 6px;
+  padding: 6px 8px; border-radius: 5px; cursor: pointer;
+  border: 1px solid rgba(255,255,255,0.06);
+  background: rgba(255,255,255,0.03);
+  transition: all 0.15s; user-select: none;
+}
+.perm-checkbox-item:hover:not(.locked) {
+  border-color: rgba(0,188,212,0.3);
+  background: rgba(0,188,212,0.06);
+}
+.perm-checkbox-item.checked {
+  border-color: rgba(0,204,136,0.3);
+  background: rgba(0,204,136,0.07);
+}
+.perm-checkbox-item input[type="checkbox"] {
+  accent-color: #00CC88;
+  width: 14px; height: 14px; flex-shrink: 0; cursor: pointer;
+}
+
+.perm-checkbox-label {
+  font-size: 11px; font-weight: 600;
+  color: #7aafc8;
+}
+.perm-checkbox-item.checked .perm-checkbox-label { color: #00CC88; }
+
+.perm-preview-note {
+  font-size: 11px; color: #5a8fa8; font-style: italic;
+  margin-top: 6px; padding: 0 2px;
+}
+
+/* Warehouse Checkboxes in Form */
+.wh-checkbox-group {
+  display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px;
+}
+.wh-checkbox-item {
+  display: flex; align-items: center; gap: 6px;
+  padding: 6px 12px; border-radius: 20px; cursor: pointer;
+  border: 1px solid rgba(255,255,255,0.1);
+  background: rgba(255,255,255,0.03);
+  font-size: 12px; font-weight: 600; color: #7aafc8;
+  transition: all 0.15s; user-select: none;
+}
+.wh-checkbox-item:hover { border-color: rgba(0,188,212,0.4); background: rgba(0,188,212,0.07); }
+.wh-checkbox-item.checked { border-color: rgba(0,188,212,0.5); background: rgba(0,188,212,0.12); color: #00E5FF; }
+.wh-checkbox-item.wh-all-item.checked { border-color: rgba(255,215,0,0.5); background: rgba(255,215,0,0.1); color: #FFD700; }
+.wh-checkbox-item input[type="checkbox"] { accent-color: #00BCD4; width: 13px; height: 13px; cursor: pointer; }
+
+/* Warehouse chips in table */
+.wh-chips { display: flex; flex-wrap: wrap; gap: 4px; }
+.wh-chip {
+  padding: 2px 8px; border-radius: 10px; font-size: 10px; font-weight: 700;
+  background: rgba(0,188,212,0.1); color: #00E5FF;
+  border: 1px solid rgba(0,188,212,0.2);
+}
+.wh-chip.wh-all { background: rgba(255,215,0,0.1); color: #FFD700; border-color: rgba(255,215,0,0.3); }
