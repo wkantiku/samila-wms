@@ -1,6 +1,6 @@
 {
   "app": {
-    "name": "BB Innovation",
+    "name": "Samila WMS 3PL",
     "subtitle": "ระบบจัดการคลังสินค้า",
     "tagline": "นวัตกรรมเพื่อความเป็นเลิศ"
   },
@@ -28,7 +28,7 @@
     "actions": "การดำเนินการ",
     "noItems": "ไม่มีรายการ",
     "notFound": "ไม่พบรายการ",
-    "sku": "รหัส SKU",
+    "sku": "Product Name",
     "required": "จำเป็น",
     "cancel": "ยกเลิก",
     "save": "บันทึก",
@@ -91,7 +91,7 @@
   "inventory": {
     "title": "โมดูลสินค้าคงคลัง",
     "list": "รายการสินค้าคงคลัง",
-    "sku": "รหัส SKU",
+    "sku": "Product Name",
     "product": "สินค้า",
     "warehouse": "คลังสินค้า",
     "quantity": "จำนวน",
@@ -129,7 +129,7 @@
   "product": {
     "title": "โมดูลสินค้า",
     "list": "รายการสินค้า",
-    "sku": "รหัส SKU",
+    "sku": "Product Name",
     "barcode": "บาร์โค้ด",
     "name": "ชื่อสินค้า",
     "category": "หมวดหมู่",
@@ -151,7 +151,7 @@
     "baseUnit": "หน่วยนับพื้นฐาน",
     "packUnit": "หน่วยบรรจุ",
     "whUnit": "หน่วยจัดเก็บ",
-    "errorSKU": "กรุณากรอก SKU",
+    "errorSKU": "กรุณากรอก Product Name",
     "errorName": "กรุณากรอกชื่อสินค้า"
   },
   "picking": {

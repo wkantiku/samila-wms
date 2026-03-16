@@ -90,6 +90,21 @@ async def root():
         "health_url": "http://localhost:8000/health"
     }
 
+@app.get("/api/info", tags=["Info"])
+async def api_info():
+    """API information endpoint"""
+    return {
+        "name": "SAMILA WMS 3PL",
+        "version": "1.0.0",
+        "tagline": "Professional 3PL Warehouse Management System",
+        "organization": {
+            "name": "Samila WMS 3PL",
+            "contact": "support@samila-wms.com"
+        },
+        "status": "operational",
+        "timestamp": datetime.now().isoformat()
+    }
+
 # ============================================================================
 # API Modules (to be included)
 # ============================================================================

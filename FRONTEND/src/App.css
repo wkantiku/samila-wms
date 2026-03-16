@@ -7,6 +7,42 @@ body {
   color: #cce4ef;
 }
 
+/* ===== GLOBAL SELECT / OPTION / OPTGROUP ===== */
+select {
+  background: #0a2030;
+  color: #e0f4ff;
+  font-weight: 600;
+  font-size: 14px;
+}
+select option {
+  background: #0a2030 !important;
+  color: #e0f4ff !important;
+  font-size: 14px;
+  font-weight: 600;
+  padding: 6px 10px;
+}
+select option:hover,
+select option:focus,
+select option:checked {
+  background: #005f80 !important;
+  color: #ffffff !important;
+}
+select optgroup {
+  background: #061520 !important;
+  color: #00bcd4 !important;
+  font-size: 12px;
+  font-weight: 700;
+  font-style: normal;
+  letter-spacing: 0.5px;
+}
+select optgroup option {
+  background: #0a2030 !important;
+  color: #e0f4ff !important;
+  font-size: 14px;
+  font-weight: 600;
+  padding-left: 12px;
+}
+
 .App {
   display: flex;
   flex-direction: column;
@@ -237,6 +273,14 @@ body {
   font-size: 13px; font-weight: 600; transition: all 0.2s;
 }
 .export-btn:hover { background: rgba(123,104,238,0.25); }
+
+.template-btn {
+  padding: 9px 18px; cursor: pointer;
+  background: rgba(255,215,0,0.1); color: #FFD700;
+  border: 1px solid rgba(255,215,0,0.35); border-radius: 8px;
+  font-size: 13px; font-weight: 600; transition: all 0.2s;
+}
+.template-btn:hover { background: rgba(255,215,0,0.22); }
 
 .create-btn {
   padding: 9px 18px; cursor: pointer;

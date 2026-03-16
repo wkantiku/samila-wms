@@ -1,6 +1,6 @@
 {
   "app": {
-    "name": "BB Innovation",
+    "name": "Samila WMS 3PL",
     "subtitle": "Warehouse Management System",
     "tagline": "Innovation for Excellence"
   },
@@ -28,7 +28,7 @@
     "actions": "Actions",
     "noItems": "No items",
     "notFound": "No items found",
-    "sku": "SKU",
+    "sku": "Product Name",
     "required": "Required",
     "cancel": "Cancel",
     "save": "Save",
@@ -91,7 +91,7 @@
   "inventory": {
     "title": "Inventory Module",
     "list": "Inventory List",
-    "sku": "SKU",
+    "sku": "Product Name",
     "product": "Product",
     "warehouse": "Warehouse",
     "quantity": "Quantity",
@@ -129,7 +129,7 @@
   "product": {
     "title": "Product Module",
     "list": "Product List",
-    "sku": "SKU",
+    "sku": "Product Name",
     "barcode": "Barcode",
     "name": "Product Name",
     "category": "Category",
@@ -151,7 +151,7 @@
     "baseUnit": "Base Unit",
     "packUnit": "Pack Unit",
     "whUnit": "WH Unit",
-    "errorSKU": "Please enter SKU",
+    "errorSKU": "Please enter Product Name",
     "errorName": "Please enter product name"
   },
   "picking": {

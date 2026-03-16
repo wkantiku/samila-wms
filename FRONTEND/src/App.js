@@ -17,6 +17,9 @@ import UsersModule from './pages/Users/UsersModule';
 import SettingsModule from './pages/Settings/SettingsModule';
 import KPIModule from './pages/KPI/KPIModule';
 import PutawayModule from './pages/Putaway/PutawayModule';
+import OrderModule from './pages/Order/OrderModule';
+import CSModule from './pages/CS/CSModule';
+import { INIT_INVENTORY } from './constants/inventoryData';
 import './App.css';
 
 function App() {
@@ -25,6 +28,50 @@ function App() {
   const [backendData, setBackendData] = useState(null);
   const [apiData, setApiData] = useState(null);
   const [activeMenu, setActiveMenu] = useState('dashboard');
+
+  // Shared inventory state — used by ReceivingModule & InventoryModule
+  const [inventory, setInventory] = useState(INIT_INVENTORY);
+
+  const handleReceive = (newItem) => {
+    setInventory(prev => [...prev, { ...newItem, id: Date.now() + Math.random() }]);
+  };
+
+  // Shared putaway state — used by ReceivingModule & PutawayModule
+  const [putawayRecords, setPutawayRecords] = useState([
+    { id: 1, paNumber: 'PA-2026-0001', grNumber: 'GR-2026-0001', sku: 'SKU-001', barcode: '8850000001', customer: 'Nayong Hospital', fromLocation: 'RECEIVING', toLocation: 'A-01-1', qty: 50,  mainUnit: 'PCS', subUnit: 'BOX',    batNumber: 'BAT-001', lotNumber: 'LOT-001', manufactureDate: '2025-01-15', expiryDate: '2027-01-15', assignedTo: 'Somchai', date: '2026-03-13', status: 'COMPLETE' },
+    { id: 2, paNumber: 'PA-2026-0002', grNumber: 'GR-2026-0002', sku: 'SKU-002', barcode: '8850000002', customer: 'ThaiBev Co.',     fromLocation: 'RECEIVING', toLocation: 'B-02-1', qty: 120, mainUnit: 'PCS', subUnit: 'CARTON', batNumber: 'BAT-002', lotNumber: 'LOT-002', manufactureDate: '2026-01-10', expiryDate: '2028-01-10', assignedTo: 'Wichai',  date: '2026-03-13', status: 'IN_PROGRESS' },
+    { id: 3, paNumber: 'PA-2026-0003', grNumber: 'GR-2026-0003', sku: 'SKU-003', barcode: '8850000003', customer: 'SCG Logistics',   fromLocation: 'RECEIVING', toLocation: 'C-01-2', qty: 30,  mainUnit: 'KG',  subUnit: 'BAG',    batNumber: 'BAT-003', lotNumber: 'LOT-003', manufactureDate: '2025-11-01', expiryDate: '2026-11-01', assignedTo: 'Malee',   date: '2026-03-13', status: 'PENDING' },
+  ]);
+
+  const handlePutaway = (newTask) => {
+    setPutawayRecords(prev => [...prev, { ...newTask, id: Date.now() + Math.random() }]);
+  };
+
+  // Receiving orders state (lifted from ReceivingModule)
+  const [receivingOrders, setReceivingOrders] = useState([
+    { id: 1, entryNumber: 'EN-2026-0001', grNumber: 'GR-2026-0001', poNumber: 'PO-2026-0001', supplier: 'Supplier A', customer: 'Customer A', date: '2026-03-03', receiver: 'Somchai', items: 50, mainUnit: 'PCS', subUnit: 'BOX', status: 'RECEIVING', zone: 'A', batNumber: 'BAT-001', lotNumber: 'LOT-001', manufactureDate: '2025-01-15', expiryDate: '2027-01-15' },
+  ]);
+
+  // Picking orders state (lifted from PickingModule)
+  const [pickingOrders, setPickingOrders] = useState([
+    { id: 1, pickNo: 'PICK-2026-0001', date: '2026-03-16', customer: 'Customer A', warehouse: 'Warehouse A', status: 'PENDING',
+      items: [
+        { id: 1, sku: 'SKU001', productName: 'Product 1', barcode: 'BC001', location: 'A-01-1-A', batNumber: 'BAT-001', lotNumber: 'LOT-001', toPick: 100, picked: 0, unit: 'PCS' },
+        { id: 2, sku: 'SKU002', productName: 'Product 2', barcode: 'BC002', location: 'A-02-1-A', batNumber: 'BAT-002', lotNumber: 'LOT-002', toPick: 50,  picked: 0, unit: 'BOX' },
+      ],
+    },
+  ]);
+
+  // Sales orders state (lifted from OrderModule)
+  const [salesOrders, setSalesOrders] = useState([]);
+
+  // CS cases state (lifted from CSModule)
+  const [csCases, setCsCases] = useState([
+    { id: 1, csNo: 'CS-20260311-0012', date: '2026-03-11', customer: 'Customer A', orderRef: 'ORD-20260310-1234', category: 'Complaint', complaintType: 'สินค้าเสียหาย', priority: 'High', subject: 'สินค้าเสียหายระหว่างขนส่ง', detail: 'กล่องสินค้าถูกบุบและสินค้าแตก 3 ชิ้น', assignTo: 'สมชาย', status: 'In Progress', dueDate: '2026-03-14', resolvedDate: '', rootCause: 'บรรจุภัณฑ์ไม่แข็งแรงพอ', correctiveAction: 'เปลี่ยนสินค้าใหม่ให้ลูกค้า', preventiveAction: 'ปรับปรุงวิธีบรรจุภัณฑ์', compensation: 'เปลี่ยนสินค้าใหม่ 3 ชิ้น', notes: [{ id: 1, author: 'สมชาย', date: '2026-03-11 10:30', text: 'รับเรื่องแล้ว กำลังตรวจสอบสินค้า', type: 'update' }, { id: 2, author: 'สมชาย', date: '2026-03-12 09:00', text: 'ยืนยันสินค้าเสียหาย 3 ชิ้น จะจัดส่งสินค้าใหม่ภายใน 2 วัน', type: 'action' }] },
+    { id: 2, csNo: 'CS-20260310-0008', date: '2026-03-10', customer: 'Customer B', orderRef: 'ORD-20260309-5678', category: 'Return Request', complaintType: '', priority: 'Medium', subject: 'ขอคืนสินค้า LOT-003', detail: 'สินค้าหมดอายุก่อนกำหนด', assignTo: 'สุภาพร', status: 'Open', dueDate: '2026-03-15', resolvedDate: '', rootCause: '', correctiveAction: '', preventiveAction: '', compensation: '', notes: [] },
+    { id: 3, csNo: 'CS-20260309-0021', date: '2026-03-09', customer: 'Customer C', orderRef: '', category: 'Inquiry', complaintType: '', priority: 'Low', subject: 'สอบถามสต็อกสินค้า SKU005', detail: 'ต้องการทราบยอดคงเหลือ', assignTo: 'วิชัย', status: 'Resolved', dueDate: '', resolvedDate: '2026-03-10', rootCause: '', correctiveAction: 'แจ้งยอดสต็อกให้ลูกค้าทราบแล้ว', preventiveAction: '', compensation: '', notes: [{ id: 1, author: 'วิชัย', date: '2026-03-09 14:00', text: 'แจ้งยอดคงเหลือ SKU005 = 180 ชิ้น', type: 'resolved' }] },
+    { id: 4, csNo: 'CS-20260308-0005', date: '2026-03-08', customer: 'Customer D', orderRef: 'ORD-20260307-9999', category: 'Delivery Issue', complaintType: '', priority: 'Urgent', subject: 'ส่งสินค้าผิด Location', detail: 'สินค้าถูกส่งไปผิดที่ ควรเป็น B-02 แต่ส่งไป A-03', assignTo: 'นภา', status: 'Closed', dueDate: '2026-03-09', resolvedDate: '2026-03-09', rootCause: 'พนักงานอ่าน label ผิด', correctiveAction: 'ย้ายสินค้าไปยัง Location ที่ถูกต้องแล้ว', preventiveAction: 'อบรมพนักงาน + ติด QR Code Location', compensation: '', notes: [{ id: 1, author: 'นภา', date: '2026-03-08 16:00', text: 'รับเรื่องด่วน กำลังตรวจสอบ', type: 'update' }, { id: 2, author: 'นภา', date: '2026-03-09 08:30', text: 'ย้ายสินค้าไป B-02 เรียบร้อยแล้ว ปิดเคส', type: 'resolved' }] },
+  ]);
 
   // Auth & warehouse flow
   const [appState, setAppState]               = useState('login');
@@ -108,7 +155,6 @@ function App() {
           {currentUser && (
             <div className="header-user-badge">
               <span className="header-user-name">{currentUser.name}</span>
-              <span className={`header-user-role role-${currentUser.role}`}>{currentUser.roleLabel}</span>
             </div>
           )}
           <button onClick={toggleLanguage} className="lang-toggle-btn">
@@ -142,6 +188,33 @@ function App() {
                 </li>
                 <li>
                   <a
+                    href="#product"
+                    className={`nav-link ${activeMenu === 'product' ? 'active' : ''}`}
+                    onClick={() => setActiveMenu('product')}
+                  >
+                    🏷️ {t('menu.product') || 'Product'}
+                  </a>
+                </li>
+                <li>
+                  <a
+                    href="#order"
+                    className={`nav-link ${activeMenu === 'order' ? 'active' : ''}`}
+                    onClick={() => setActiveMenu('order')}
+                  >
+                    🛒 Order
+                  </a>
+                </li>
+                <li>
+                  <a
+                    href="#cs"
+                    className={`nav-link ${activeMenu === 'cs' ? 'active' : ''}`}
+                    onClick={() => setActiveMenu('cs')}
+                  >
+                    🎧 Customer Service
+                  </a>
+                </li>
+                <li>
+                  <a
                     href="#receiving"
                     className={`nav-link ${activeMenu === 'receiving' ? 'active' : ''}`}
                     onClick={() => setActiveMenu('receiving')}
@@ -160,11 +233,11 @@ function App() {
                 </li>
                 <li>
                   <a
-                    href="#product"
-                    className={`nav-link ${activeMenu === 'product' ? 'active' : ''}`}
-                    onClick={() => setActiveMenu('product')}
+                    href="#putaway"
+                    className={`nav-link ${activeMenu === 'putaway' ? 'active' : ''}`}
+                    onClick={() => setActiveMenu('putaway')}
                   >
-                    🏷️ {t('menu.product') || 'Product'}
+                    🏷️ Putaway
                   </a>
                 </li>
                 <li>
@@ -174,15 +247,6 @@ function App() {
                     onClick={() => setActiveMenu('picking')}
                   >
                     🔍 {t('menu.picking') || 'Picking'}
-                  </a>
-                </li>
-                <li>
-                  <a
-                    href="#putaway"
-                    className={`nav-link ${activeMenu === 'putaway' ? 'active' : ''}`}
-                    onClick={() => setActiveMenu('putaway')}
-                  >
-                    🏷️ Putaway
                   </a>
                 </li>
                 <li>
@@ -247,29 +311,21 @@ function App() {
                 </li>
                 <li>
                   <a
-                    href="#warehouse-setting"
-                    className={`nav-link ${activeMenu === 'warehouse-setting' ? 'active' : ''}`}
-                    onClick={() => setActiveMenu('warehouse-setting')}
-                  >
-                    🏭 Warehouse
-                  </a>
-                </li>
-                <li>
-                  <a
-                    href="#user-limit"
-                    className={`nav-link ${activeMenu === 'user-limit' ? 'active' : ''}`}
-                    onClick={() => setActiveMenu('user-limit')}
-                  >
-                    🔢 User Limit
-                  </a>
-                </li>
-                <li>
-                  <a
                     href="#settings"
                     className={`nav-link ${activeMenu === 'settings' ? 'active' : ''}`}
                     onClick={() => setActiveMenu('settings')}
                   >
                     ⚙️ {t('menu.settings') || 'Settings'}
+                  </a>
+                </li>
+                <li>
+                  <a
+                    href="#superadmin"
+                    className={`nav-link ${activeMenu === 'superadmin' ? 'active' : ''}`}
+                    onClick={() => setActiveMenu('superadmin')}
+                    style={{ color: activeMenu === 'superadmin' ? '#FFD700' : '#9b8caf' }}
+                  >
+                    👑 Super Admin
                   </a>
                 </li>
               </ul>
@@ -282,23 +338,24 @@ function App() {
 
           {/* Dynamic Page Rendering */}
           {activeMenu === 'dashboard'  && <Dashboard />}
-          {activeMenu === 'receiving'  && <ReceivingModule />}
-          {activeMenu === 'inventory'  && <InventoryModule />}
+          {activeMenu === 'receiving'  && <ReceivingModule onReceive={handleReceive} onPutaway={handlePutaway} receivingOrders={receivingOrders} setReceivingOrders={setReceivingOrders} />}
+          {activeMenu === 'inventory'  && <InventoryModule inventory={inventory} setInventory={setInventory} />}
           {activeMenu === 'product'    && <ProductModule />}
-          {activeMenu === 'picking'    && <PickingModule />}
+          {activeMenu === 'picking'    && <PickingModule inventory={inventory} setInventory={setInventory} pickingOrders={pickingOrders} setPickingOrders={setPickingOrders} />}
           {activeMenu === 'shipping'   && <ShippingModule />}
           {activeMenu === 'tarif'      && <TarifManagement />}
           {activeMenu === 'customer'   && <CustomerModule />}
-          {activeMenu === 'reports'    && <ReportsModule />}
+          {activeMenu === 'reports'    && <ReportsModule inventory={inventory} receivingOrders={receivingOrders} putawayRecords={putawayRecords} pickingOrders={pickingOrders} salesOrders={salesOrders} csCases={csCases} />}
           {activeMenu === 'users'             && <UsersModule />}
-          {activeMenu === 'warehouse-setting' && <SettingsModule defaultTab="warehouse" />}
-          {activeMenu === 'user-limit'        && <SettingsModule defaultTab="userlimit" />}
-          {activeMenu === 'settings'          && <SettingsModule />}
+          {activeMenu === 'settings'    && <SettingsModule />}
+          {activeMenu === 'superadmin'  && <SettingsModule defaultTab="superadmin" />}
           {activeMenu === 'kpi'        && <KPIModule />}
-          {activeMenu === 'putaway'    && <PutawayModule />}
+          {activeMenu === 'putaway'    && <PutawayModule records={putawayRecords} setRecords={setPutawayRecords} inventory={inventory} setInventory={setInventory} />}
+          {activeMenu === 'order'      && <OrderModule orders={salesOrders} setOrders={setSalesOrders} inventory={inventory} />}
+          {activeMenu === 'cs'         && <CSModule cases={csCases} setCases={setCsCases} />}
 
           {/* Default home content (hidden when module active) */}
-          {!['dashboard','receiving','inventory','product','picking','putaway','shipping','tarif','customer','reports','users','warehouse-setting','user-limit','settings','kpi'].includes(activeMenu) && (
+          {!['dashboard','receiving','inventory','product','picking','putaway','order','cs','shipping','tarif','customer','reports','users','settings','superadmin','kpi'].includes(activeMenu) && (
           <><section className="status-section">
             <div className="status-card backend-status">
               <div className="card-header">
@@ -440,7 +497,7 @@ function App() {
         </div>
         <div className="footer-content">
           <p>
-            <strong>BB Innovation</strong> © 2026 |
+            <strong>Samila WMS 3PL</strong> © 2026 |
             <a href="#docs">Documentation</a> |
             <a href="#support">Support</a> |
             <a href="#github">GitHub</a>

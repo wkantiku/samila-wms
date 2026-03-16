@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import './KPIModule.css';
 
 const KPI_KEY = 'wms_kpi_targets';
@@ -9,6 +9,7 @@ const TABS = [
   { id: 'picking',   label: '🔍 Picking',   icon: '🔍' },
   { id: 'putaway',   label: '🏷️ Putaway',   icon: '🏷️' },
   { id: 'shipping',  label: '🚚 Shipping',  icon: '🚚' },
+  { id: 'order',     label: '🛒 Order',     icon: '🛒' },
 ];
 
 const defaultTargets = {
@@ -16,6 +17,7 @@ const defaultTargets = {
   picking:   { dailyOrders: 150, pickTimeMin: 30,   accuracy: 99.5, fillRate: 98 },
   putaway:   { dailyItems: 200, putawayTimeMin: 20, accuracy: 99.0, locationUtil: 85 },
   shipping:  { dailyOrders: 120, onTimeDelivery: 95, accuracy: 99.0, returnRate: 2 },
+  order:     { dailyOrders: 100, orderTimeMin: 15,  accuracy: 99.0, cancelRate: 2 },
 };
 
 // Simulated actual values (in real app → from API)
@@ -24,6 +26,7 @@ const actuals = {
   picking:   { dailyOrders: 132, pickTimeMin: 35,    accuracy: 98.7, fillRate: 96.5 },
   putaway:   { dailyItems: 190, putawayTimeMin: 22,  accuracy: 98.5, locationUtil: 82 },
   shipping:  { dailyOrders: 115, onTimeDelivery: 93, accuracy: 98.8, returnRate: 2.3 },
+  order:     { dailyOrders: 88,  orderTimeMin: 18,   accuracy: 97.5, cancelRate: 1.8 },
 };
 
 const fields = {
@@ -50,6 +53,12 @@ const fields = {
     { key: 'onTimeDelivery', label: 'On-time Delivery',    unit: '%',      lowerBetter: false },
     { key: 'accuracy',       label: 'ความถูกต้อง',          unit: '%',      lowerBetter: false },
     { key: 'returnRate',     label: 'Return Rate',         unit: '%',      lowerBetter: true  },
+  ],
+  order: [
+    { key: 'dailyOrders',  label: 'Order ต่อวัน',          unit: 'orders', lowerBetter: false },
+    { key: 'orderTimeMin', label: 'เวลาสร้าง Order',        unit: 'นาที',   lowerBetter: true  },
+    { key: 'accuracy',     label: 'ความถูกต้อง',            unit: '%',      lowerBetter: false },
+    { key: 'cancelRate',   label: 'Cancel Rate',           unit: '%',      lowerBetter: true  },
   ],
 };
 

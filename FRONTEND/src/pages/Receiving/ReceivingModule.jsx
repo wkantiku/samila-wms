@@ -10,30 +10,53 @@ const emptyForm = {
   batNumber: '', lotNumber: '', manufactureDate: '', expiryDate: '', zone: 'A'
 };
 
-function ReceivingModule() {
+const toPutawayTask = (order) => {
+  const num = (order.grNumber || '').replace('GR-', '') || String(Date.now()).slice(-4);
+  return {
+    paNumber:        `PA-${num}`,
+    grNumber:        order.grNumber,
+    sku:             order.supplier || order.grNumber,
+    barcode:         '',
+    customer:        order.customer,
+    fromLocation:    'RECEIVING',
+    toLocation:      '',
+    qty:             Number(order.items) || 0,
+    mainUnit:        order.mainUnit || 'PCS',
+    subUnit:         order.subUnit  || 'BOX',
+    batNumber:       order.batNumber       || '',
+    lotNumber:       order.lotNumber       || '',
+    manufactureDate: order.manufactureDate || '',
+    expiryDate:      order.expiryDate      || '',
+    assignedTo:      '',
+    date:            new Date().toISOString().slice(0, 10),
+    status:          'PENDING',
+  };
+};
+
+const toInventoryItem = (order) => ({
+  sku:             order.grNumber,
+  barcode:         '',
+  product:         `${order.supplier || 'Received'} (${order.grNumber})`,
+  description:     `รับจาก ${order.supplier || '-'} | PO: ${order.poNumber || '-'}`,
+  customer:        order.customer,
+  warehouse:       'Warehouse A',
+  location:        `${order.zone || 'A'}-01-1-A`,
+  quantity:        Number(order.items) || 0,
+  available:       Number(order.items) || 0,
+  minStock:        0,
+  mainUnit:        order.mainUnit,
+  subUnit:         order.subUnit,
+  batNumber:       order.batNumber,
+  lotNumber:       order.lotNumber,
+  manufactureDate: order.manufactureDate,
+  expiryDate:      order.expiryDate,
+  status:          'GOOD',
+  grRef:           order.grNumber,
+});
+
+function ReceivingModule({ onReceive, onPutaway, receivingOrders, setReceivingOrders }) {
   const { t, i18n } = useTranslation();
   const [activeTab, setActiveTab] = useState('list');
-  const [receivingOrders, setReceivingOrders] = useState([
-    {
-      id: 1,
-      entryNumber: 'EN-2026-0001',
-      grNumber: 'GR-2026-0001',
-      poNumber: 'PO-2026-0001',
-      supplier: 'Supplier A',
-      customer: 'Customer A',
-      date: '2026-03-03',
-      receiver: 'Somchai',
-      items: 50,
-      mainUnit: 'PCS',
-      subUnit: 'BOX',
-      status: 'RECEIVING',
-      zone: 'A',
-      batNumber: 'BAT-001',
-      lotNumber: 'LOT-001',
-      manufactureDate: '2025-01-15',
-      expiryDate: '2027-01-15'
-    }
-  ]);
 
   const [showModal, setShowModal] = useState(false);
   const [editId, setEditId] = useState(null);
@@ -55,14 +78,20 @@ function ReceivingModule() {
     if (!row.customer.trim()) { alert('กรุณาระบุ Customer'); return; }
     if (!row.items || Number(row.items) <= 0) { alert('กรุณาระบุ Item Quantity'); return; }
     const nextNum = String(receivingOrders.length + 1).padStart(4, '0');
-    setReceivingOrders(prev => [...prev, {
+    const newOrder = {
       id: Date.now() + idx,
       grNumber: `GR-2026-${nextNum}`,
       date: new Date().toISOString().slice(0, 10),
       receiver: currentUser,
       ...row,
       items: Number(row.items) || 0,
-    }]);
+      addedToInventory: row.status === 'COMPLETE',
+    };
+    setReceivingOrders(prev => [...prev, newOrder]);
+    if (row.status === 'COMPLETE') {
+      onReceive?.(toInventoryItem(newOrder));
+      onPutaway?.(toPutawayTask(newOrder));
+    }
     setInlineRows(prev => prev.map((r, i) => i === idx ? emptyInlineRow() : r));
   };
 
@@ -99,9 +128,22 @@ function ReceivingModule() {
     if (!form.customer.trim())      { setFormError('กรุณาระบุ Customer *'); return; }
     if (!form.items || Number(form.items) <= 0) { setFormError('กรุณาระบุ Item Quantity *'); return; }
     if (editId) {
-      setReceivingOrders(prev => prev.map(o => o.id === editId ? { ...o, ...form } : o));
+      const prevOrder = receivingOrders.find(o => o.id === editId);
+      const updatedOrder = { ...prevOrder, ...form, items: Number(form.items) || 0 };
+      setReceivingOrders(prev => prev.map(o => o.id === editId ? updatedOrder : o));
+      // ถ้าเปลี่ยน status เป็น COMPLETE ครั้งแรก → เพิ่มเข้า Inventory + สร้าง Putaway
+      if (form.status === 'COMPLETE' && prevOrder?.status !== 'COMPLETE' && !prevOrder?.addedToInventory) {
+        onReceive?.(toInventoryItem(updatedOrder));
+        onPutaway?.(toPutawayTask(updatedOrder));
+        setReceivingOrders(prev => prev.map(o => o.id === editId ? { ...o, addedToInventory: true } : o));
+      }
     } else {
-      setReceivingOrders(prev => [...prev, { id: Date.now(), ...form, items: Number(form.items) || 0 }]);
+      const newOrder = { id: Date.now(), ...form, items: Number(form.items) || 0, addedToInventory: form.status === 'COMPLETE' };
+      setReceivingOrders(prev => [...prev, newOrder]);
+      if (form.status === 'COMPLETE') {
+        onReceive?.(toInventoryItem(newOrder));
+        onPutaway?.(toPutawayTask(newOrder));
+      }
     }
     closeModal();
   };

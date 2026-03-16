@@ -53,10 +53,9 @@ const initData = [
   },
 ];
 
-function PutawayModule() {
+function PutawayModule({ records, setRecords, inventory, setInventory }) {
   const { i18n } = useTranslation();
   const [activeTab, setActiveTab]     = useState('list');
-  const [records, setRecords]         = useState(initData);
   const [showModal, setShowModal]     = useState(false);
   const [editId, setEditId]           = useState(null);
   const [form, setForm]               = useState(makeEmptyForm);
@@ -70,7 +69,7 @@ function PutawayModule() {
   const currentUser = localStorage.getItem('currentUser') || 'Operator';
 
   const downloadTemplate = () => {
-    const headers = ['PA Number','GR Number','SKU','Barcode','Customer','From Location','To Location','Qty','Main Unit','Sub Unit','BAT No.','Lot No.','MFG Date (YYYY-MM-DD)','Expiry Date (YYYY-MM-DD)','Assigned To','Status'];
+    const headers = ['PA Number','GR Number','Product Name','Barcode','Customer','From Location','To Location','Qty','Main Unit','Sub Unit','BAT No.','Lot No.','MFG Date (YYYY-MM-DD)','Expiry Date (YYYY-MM-DD)','Assigned To','Status'];
     const example = ['PA-2026-0001','GR-2026-0001','SKU-001','8850000001','Customer A','RECEIVING','A-01-1','50','PCS','BOX','BAT-001','LOT-001','2025-01-15','2027-01-15','Somchai','PENDING'];
     const ws = XLSX.utils.aoa_to_sheet([headers, example]);
     const wb = XLSX.utils.book_new();
@@ -95,18 +94,29 @@ function PutawayModule() {
 
   const closeModal = () => { setShowModal(false); setEditId(null); setFormError(''); };
 
+  const updateInventoryLocation = (grNumber, toLocation) => {
+    if (!grNumber || !toLocation) return;
+    setInventory?.(prev => prev.map(inv =>
+      inv.grRef === grNumber ? { ...inv, location: toLocation } : inv
+    ));
+  };
+
   const handleSave = () => {
     if (!form.grNumber.trim())    { setFormError('กรุณาระบุ GR Number'); return; }
-    if (!form.sku.trim())         { setFormError('กรุณาระบุ SKU'); return; }
+    if (!form.sku.trim())         { setFormError('กรุณาระบุ Product Name'); return; }
     if (!form.customer.trim())    { setFormError('กรุณาระบุ Customer'); return; }
     if (!form.toLocation.trim())  { setFormError('กรุณาระบุ To Location'); return; }
     if (!form.qty || Number(form.qty) <= 0) { setFormError('กรุณาระบุจำนวน Qty'); return; }
     if (!form.batNumber.trim())   { setFormError('กรุณาระบุ BAT No.'); return; }
     if (!form.lotNumber.trim())   { setFormError('กรุณาระบุ Lot No.'); return; }
     if (editId) {
+      const prevRecord = records.find(r => r.id === editId);
+      const becomingComplete = form.status === 'COMPLETE' && prevRecord?.status !== 'COMPLETE';
       setRecords(prev => prev.map(r => r.id === editId ? { ...r, ...form, qty: Number(form.qty) } : r));
+      if (becomingComplete) updateInventoryLocation(form.grNumber, form.toLocation);
     } else {
       setRecords(prev => [...prev, { id: Date.now(), ...form, qty: Number(form.qty) }]);
+      if (form.status === 'COMPLETE') updateInventoryLocation(form.grNumber, form.toLocation);
     }
     closeModal();
   };
@@ -117,8 +127,10 @@ function PutawayModule() {
   };
 
   const markComplete = (id) => {
+    const rec = records.find(r => r.id === id);
     setRecords(prev => prev.map(r => r.id === id ? { ...r, status: 'COMPLETE' } : r));
     setScanResult(prev => prev && prev.id === id ? { ...prev, status: 'COMPLETE' } : prev);
+    if (rec && rec.status !== 'COMPLETE') updateInventoryLocation(rec.grNumber, rec.toLocation);
   };
 
   const toggleLanguage = () => {
@@ -209,7 +221,7 @@ function PutawayModule() {
                 <tr>
                   <th>PA Number</th>
                   <th>GR Number</th>
-                  <th>SKU</th>
+                  <th>Product Name</th>
                   <th>Customer</th>
                   <th>From</th>
                   <th>Zone</th>
@@ -273,13 +285,13 @@ function PutawayModule() {
           <div className="pa-scan">
             <div className="scan-container">
               <h2>📱 Scan &amp; Assign Location</h2>
-              <p style={{ color: '#5a8fa8', fontSize: 13, margin: '0 0 18px' }}>สแกน Barcode, PA Number หรือ SKU เพื่อดูข้อมูลและมอบหมาย Location</p>
+              <p style={{ color: '#5a8fa8', fontSize: 13, margin: '0 0 18px' }}>สแกน Barcode, PA Number หรือ Product Name เพื่อดูข้อมูลและมอบหมาย Location</p>
 
               <div className="scan-input-row">
                 <input
                   type="text"
                   className="barcode-input"
-                  placeholder="สแกน Barcode / PA Number / SKU..."
+                  placeholder="สแกน Barcode / PA Number / Product Name..."
                   value={scanInput}
                   onChange={e => setScanInput(e.target.value)}
                   onKeyDown={e => e.key === 'Enter' && handleScan()}
@@ -298,7 +310,7 @@ function PutawayModule() {
                   </div>
                   <div className="scan-result-grid">
                     <div><span className="sr-label">GR Number</span><span className="sr-val">{scanResult.grNumber}</span></div>
-                    <div><span className="sr-label">SKU</span><span className="sr-val" style={{ color: '#FFD700' }}>{scanResult.sku}</span></div>
+                    <div><span className="sr-label">Product Name</span><span className="sr-val" style={{ color: '#FFD700' }}>{scanResult.sku}</span></div>
                     <div><span className="sr-label">Customer</span><span className="sr-val">{scanResult.customer}</span></div>
                     <div><span className="sr-label">Qty</span><span className="sr-val" style={{ color: '#00CC88', fontWeight: 700 }}>{scanResult.qty} {scanResult.mainUnit}</span></div>
                     <div><span className="sr-label">From</span><span className="sr-val">{scanResult.fromLocation}</span></div>
@@ -381,11 +393,11 @@ function PutawayModule() {
                 </div>
               </div>
 
-              {/* SKU / Barcode */}
+              {/* Product Name / Barcode */}
               <div className="rcv-form-row2">
                 <div className="rcv-form-group">
-                  <label>SKU <span style={{ color: '#FF6B6B' }}>*</span></label>
-                  <input type="text" value={form.sku} onChange={e => { setForm(p => ({ ...p, sku: e.target.value })); setFormError(''); }} placeholder="SKU-001" />
+                  <label>Product Name <span style={{ color: '#FF6B6B' }}>*</span></label>
+                  <input type="text" value={form.sku} onChange={e => { setForm(p => ({ ...p, sku: e.target.value })); setFormError(''); }} placeholder="Product Name" />
                 </div>
                 <div className="rcv-form-group">
                   <label>Barcode</label>
