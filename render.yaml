@@ -1,0 +1,17 @@
+services:
+  - type: web
+    name: samila-wms-backend
+    runtime: docker
+    dockerfilePath: BACKEND/Dockerfile
+    branch: master
+    healthCheckPath: /health
+    envVars:
+      - key: PORT
+        value: 8000
+
+  - type: web
+    name: samila-wms-frontend
+    runtime: docker
+    dockerfilePath: FRONTEND/Dockerfile
+    branch: master
+    healthCheckPath: /
