@@ -26,17 +26,19 @@
 
 .wh-topbar-logo { display: flex; align-items: center; gap: 10px; }
 .wh-logo-img {
-  width: 34px; height: 34px;
+  height: 34px;
+  width: auto;
+  max-width: 160px;
   object-fit: contain;
 }
 .wh-logo-text {
   font-size: 17px; font-weight: 900;
   letter-spacing: 0.8px;
-  color: #FFD700;
-  -webkit-text-stroke: 0px;
-  text-shadow:
-    1px 1px 0 #7a5200,
-    2px 2px 0 rgba(0,0,0,0.5);
+  background: linear-gradient(90deg, #2BD4F0 0%, #50C878 50%, #F0B830 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  filter: drop-shadow(0 0 6px rgba(43,212,240,0.3));
 }
 
 .wh-topbar-user { display: flex; align-items: center; gap: 14px; }
@@ -122,6 +124,16 @@
   margin-bottom: 12px;
 }
 .wh-card-icon { font-size: 28px; flex-shrink: 0; }
+.wh-card-company {
+  font-size: 11px; font-weight: 700; color: #00E5FF;
+  background: rgba(0,229,255,0.08);
+  border: 1px solid rgba(0,229,255,0.2);
+  border-radius: 4px;
+  padding: 2px 7px;
+  margin-bottom: 5px;
+  display: inline-block;
+  letter-spacing: 0.3px;
+}
 .wh-card-name { font-size: 15px; font-weight: 700; color: #ffffff; margin-bottom: 3px; }
 .wh-card-code { font-size: 11px; font-family: 'Courier New', monospace; color: #00E5FF; }
 

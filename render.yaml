@@ -1,17 +1,34 @@
 services:
+  # ── FastAPI Backend ───────────────────────────────────
   - type: web
     name: samila-wms-backend
     runtime: docker
     dockerfilePath: BACKEND/Dockerfile
+    dockerContext: BACKEND
     branch: master
     healthCheckPath: /health
     envVars:
       - key: PORT
         value: 8000
+      - key: SECRET_KEY
+        generateValue: true
+      - key: ALGORITHM
+        value: HS256
+      - key: ACCESS_TOKEN_EXPIRE_MINUTES
+        value: 60
 
+  # ── React Frontend ────────────────────────────────────
+  # หลัง backend deploy แล้ว ไปตั้ง REACT_APP_API_URL ใน Render Dashboard
+  # Environment → Add Environment Variable:
+  #   Key:   REACT_APP_API_URL
+  #   Value: https://samila-wms-backend.onrender.com
   - type: web
     name: samila-wms-frontend
     runtime: docker
     dockerfilePath: FRONTEND/Dockerfile
+    dockerContext: FRONTEND
     branch: master
     healthCheckPath: /
+    envVars:
+      - key: REACT_APP_API_URL
+        value: https://samila-wms-backend.onrender.com

@@ -15,6 +15,7 @@ import CustomerModule from './pages/Customer/CustomerModule';
 import ReportsModule from './pages/Reports/ReportsModule';
 import UsersModule from './pages/Users/UsersModule';
 import SettingsModule from './pages/Settings/SettingsModule';
+import SuperAdminModule from './pages/SuperAdmin/SuperAdminModule';
 import KPIModule from './pages/KPI/KPIModule';
 import PutawayModule from './pages/Putaway/PutawayModule';
 import OrderModule from './pages/Order/OrderModule';
@@ -22,12 +23,57 @@ import CSModule from './pages/CS/CSModule';
 import { INIT_INVENTORY } from './constants/inventoryData';
 import './App.css';
 
+// Shared user list — single source of truth for UsersModule, SuperAdmin tab, and LoginPage
+const _allOn = () => Object.fromEntries([
+  'dashboard','receiving','inventory','product','picking','putaway','shipping',
+  'tarif','customer','reports','kpi','users','warehouse-setting','user-limit','settings'
+].map(k => [k, true]));
+
+const INIT_USERS = [
+  { id: 0, name: 'Samila Super Admin', username: 'superadmin', email: 'superadmin@samila.th', warehouses: ['All'], password: 'Super@2026', status: 'active', lastLogin: '-', menus: _allOn(), role: 'superadmin' },
+  { id: 1, name: 'สมชาย ใจดี',      username: 'admin',    email: 'somchai@samila.th',  warehouses: ['All'],         password: 'admin123',   status: 'active',   lastLogin: '2026-03-11 09:12', menus: _allOn() },
+  { id: 2, name: 'สุภาพร รักงาน',   username: 'manager',  email: 'supaporn@samila.th', warehouses: ['Warehouse A'], password: 'manager123', status: 'active',   lastLogin: '2026-03-11 08:45', menus: { ..._allOn(), 'user-limit': false, settings: false } },
+  { id: 3, name: 'วิชัย แข็งแกร่ง', username: 'super1',   email: 'wichai@samila.th',   warehouses: ['Warehouse A'], password: 'super123',   status: 'active',   lastLogin: '2026-03-10 17:30', menus: { ..._allOn(), users: false, settings: false } },
+  { id: 4, name: 'นภา สดใส',        username: 'whadmin',  email: 'napa@samila.th',     warehouses: ['Warehouse B'], password: 'wh1234',     status: 'active',   lastLogin: '2026-03-10 16:22', menus: { ..._allOn(), users: false, 'warehouse-setting': false, 'user-limit': false, settings: false } },
+  { id: 5, name: 'ธนา มั่งมี',      username: 'leader1',  email: 'thana@samila.th',    warehouses: ['Warehouse A'], password: 'lead123',    status: 'active',   lastLogin: '2026-03-11 07:40', menus: { ..._allOn(), users: false, settings: false } },
+  { id: 6, name: 'ปรีชา เก่งกาจ',   username: 'operator', email: 'preecha@samila.th',  warehouses: ['Warehouse B'], password: 'op1234',     status: 'active',   lastLogin: '2026-03-09 14:10', menus: { ..._allOn(), users: false, reports: false, kpi: false, settings: false } },
+  { id: 7, name: 'อรทัย สวยงาม',    username: 'orathai',  email: 'orathai@samila.th',  warehouses: ['All'],         password: 'Orathai@123', status: 'inactive', lastLogin: '2026-02-28 10:00', menus: _allOn() },
+];
+
 function App() {
   const { t, i18n } = useTranslation();
   const [backendStatus, setBackendStatus] = useState('checking');
   const [backendData, setBackendData] = useState(null);
   const [apiData, setApiData] = useState(null);
   const [activeMenu, setActiveMenu] = useState('dashboard');
+
+  // Shared users state — persist to localStorage so passwords survive page refresh
+  // Always ensure the superadmin account exists (merge if localStorage is from before SA was added)
+  const [sharedUsers, setSharedUsers] = useState(() => {
+    try {
+      const saved = localStorage.getItem('wms_users');
+      if (!saved) return INIT_USERS;
+      const parsed = JSON.parse(saved);
+      const SA = INIT_USERS.find(u => u.role === 'superadmin');
+      const hasSA = parsed.some(u => u.role === 'superadmin');
+      return hasSA ? parsed : [SA, ...parsed];
+    } catch {
+      return INIT_USERS;
+    }
+  });
+
+  useEffect(() => {
+    try { localStorage.setItem('wms_users', JSON.stringify(sharedUsers)); } catch {}
+  }, [sharedUsers]);
+
+  // Register PWA Service Worker
+  useEffect(() => {
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/sw.js')
+        .then(() => console.log('PWA: Service Worker registered'))
+        .catch(err => console.warn('PWA: SW registration failed', err));
+    }
+  }, []);
 
   // Shared inventory state — used by ReceivingModule & InventoryModule
   const [inventory, setInventory] = useState(INIT_INVENTORY);
@@ -98,9 +144,11 @@ function App() {
     fetchApiInfo();
   }, []);
 
+  const API_URL = process.env.REACT_APP_API_URL || '{API_URL}';
+
   const checkBackendHealth = async () => {
     try {
-      const response = await fetch('http://localhost:8000/health');
+      const response = await fetch(`${API_URL}/health`);
       if (response.ok) {
         const data = await response.json();
         setBackendStatus('healthy');
@@ -115,7 +163,7 @@ function App() {
 
   const fetchApiInfo = async () => {
     try {
-      const response = await fetch('http://localhost:8000/api/info');
+      const response = await fetch(`${API_URL}/api/info`);
       if (response.ok) {
         const data = await response.json();
         setApiData(data);
@@ -133,9 +181,12 @@ function App() {
 
   // Show login / warehouse select pages
   if (appState === 'login')
-    return <LoginPage onLogin={handleLogin} />;
-  if (appState === 'select-warehouse')
-    return <WarehouseSelectPage user={currentUser} onSelect={handleSelectWarehouse} onLogout={handleLogout} />;
+    return <LoginPage onLogin={handleLogin} users={sharedUsers} />;
+  if (appState === 'select-warehouse') {
+    // Always use fresh user data from sharedUsers so SuperAdmin warehouse assignments reflect immediately
+    const freshUser = sharedUsers.find(u => u.id === currentUser?.id) || currentUser;
+    return <WarehouseSelectPage user={freshUser} onSelect={handleSelectWarehouse} onLogout={handleLogout} />;
+  }
 
   return (
     <div className="App">
@@ -318,16 +369,18 @@ function App() {
                     ⚙️ {t('menu.settings') || 'Settings'}
                   </a>
                 </li>
-                <li>
-                  <a
-                    href="#superadmin"
-                    className={`nav-link ${activeMenu === 'superadmin' ? 'active' : ''}`}
-                    onClick={() => setActiveMenu('superadmin')}
-                    style={{ color: activeMenu === 'superadmin' ? '#FFD700' : '#9b8caf' }}
-                  >
-                    👑 Super Admin
-                  </a>
-                </li>
+                {currentUser?.role === 'superadmin' && (
+                  <li>
+                    <a
+                      href="#superadmin"
+                      className={`nav-link ${activeMenu === 'superadmin' ? 'active' : ''}`}
+                      onClick={() => setActiveMenu('superadmin')}
+                      style={{ color: activeMenu === 'superadmin' ? '#FFD700' : '#FFD700', opacity: activeMenu === 'superadmin' ? 1 : 0.7 }}
+                    >
+                      👑 Super Admin
+                    </a>
+                  </li>
+                )}
               </ul>
             </div>
           </nav>
@@ -346,9 +399,9 @@ function App() {
           {activeMenu === 'tarif'      && <TarifManagement />}
           {activeMenu === 'customer'   && <CustomerModule />}
           {activeMenu === 'reports'    && <ReportsModule inventory={inventory} receivingOrders={receivingOrders} putawayRecords={putawayRecords} pickingOrders={pickingOrders} salesOrders={salesOrders} csCases={csCases} />}
-          {activeMenu === 'users'             && <UsersModule />}
-          {activeMenu === 'settings'    && <SettingsModule />}
-          {activeMenu === 'superadmin'  && <SettingsModule defaultTab="superadmin" />}
+          {activeMenu === 'users'      && <UsersModule users={sharedUsers} setUsers={setSharedUsers} />}
+          {activeMenu === 'settings'   && <SettingsModule />}
+          {activeMenu === 'superadmin' && currentUser?.role === 'superadmin' && <SuperAdminModule currentUser={currentUser} users={sharedUsers} setUsers={setSharedUsers} />}
           {activeMenu === 'kpi'        && <KPIModule />}
           {activeMenu === 'putaway'    && <PutawayModule records={putawayRecords} setRecords={setPutawayRecords} inventory={inventory} setInventory={setInventory} />}
           {activeMenu === 'order'      && <OrderModule orders={salesOrders} setOrders={setSalesOrders} inventory={inventory} />}
@@ -396,16 +449,16 @@ function App() {
           <section className="quick-links-section">
             <h2>🔗 QUICK LINKS</h2>
             <div className="links-container">
-              <a href="http://localhost:8000" target="_blank" rel="noopener noreferrer" className="link-btn backend-btn">
+              <a href={API_URL} target="_blank" rel="noopener noreferrer" className="link-btn backend-btn">
                 🏠 BACKEND
               </a>
-              <a href="http://localhost:8000/health" target="_blank" rel="noopener noreferrer" className="link-btn health-btn">
+              <a href={`${API_URL}/health`} target="_blank" rel="noopener noreferrer" className="link-btn health-btn">
                 💚 HEALTH
               </a>
-              <a href="http://localhost:8000/api/docs" target="_blank" rel="noopener noreferrer" className="link-btn docs-btn">
+              <a href={`${API_URL}/api/docs`} target="_blank" rel="noopener noreferrer" className="link-btn docs-btn">
                 📚 API DOCS
               </a>
-              <a href="http://localhost:8000/api/info" target="_blank" rel="noopener noreferrer" className="link-btn info-btn">
+              <a href={`${API_URL}/api/info`} target="_blank" rel="noopener noreferrer" className="link-btn info-btn">
                 ℹ️ API INFO
               </a>
             </div>
