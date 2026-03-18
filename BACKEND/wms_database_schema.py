@@ -530,7 +530,6 @@ class Invoice(Base):
     # Relationships
     customer = relationship("Customer", back_populates="invoices")
     line_items = relationship("InvoiceLineItem", back_populates="invoice")
-    payments = relationship("PaymentRecord", back_populates="invoice")
 
 
 class InvoiceLineItem(Base):
