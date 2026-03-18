@@ -26,8 +26,8 @@ function ProductModule() {
   const openCreate = () => { setForm(emptyForm); setEditId(null); setFormError(''); setShowModal(true); };
 
   const downloadTemplate = () => {
-    const headers = ['SKU','Barcode','Name','Category','Main Unit','Sub Unit','Price','Batch Number','Lot Number','Manufacture Date (YYYY-MM-DD)','Expiry Date (YYYY-MM-DD)','Weight KG','Weight G','Width (CM)','Length (CM)','Height (CM)'];
-    const example = ['SKU001','BC001','Product Name','Electronics','PCS','BOX','1000','BAT-001','LOT-001','2025-01-15','2027-01-15','1.5','','30','20','10'];
+    const headers = ['Item Code','Barcode','Product Name','Category','Main Unit','Sub Unit','Batch Number','Lot Number','MFG','Exp','Weight KG','Weight G','W','L','H'];
+    const example = ['SKU001','BC001','AAA','Electronics','PCS','BOX','BAT-001','LOT-001','2025-01-15','2027-01-15','1.5','','30','20','10'];
     const ws = XLSX.utils.aoa_to_sheet([headers, example]);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Product Template');
@@ -120,25 +120,27 @@ function ProductModule() {
             <table className="data-table">
               <thead>
                 <tr>
-                  <th>{t('product.sku')}</th>
+                  <th>Item Code</th>
                   <th>{t('product.barcode')}</th>
-                  <th>{t('product.name')}</th>
+                  <th>Product Name</th>
                   <th>{t('product.category')}</th>
                   <th>Main Unit</th>
                   <th>Sub Unit</th>
-                  <th>{t('product.price')}</th>
-                  <th>BAT No.</th>
-                  <th>Lot No.</th>
-                  <th>MFG Date</th>
-                  <th>Expiry Date</th>
-                  <th>Weight</th>
-                  <th>Dimension (W×L×H)</th>
+                  <th>Batch Number</th>
+                  <th>Lot Number</th>
+                  <th>MFG</th>
+                  <th>Exp</th>
+                  <th>Weight KG</th>
+                  <th>Weight G</th>
+                  <th>W</th>
+                  <th>L</th>
+                  <th>H</th>
                   <th>{t('product.actions')}</th>
                 </tr>
               </thead>
               <tbody>
                 {products.length === 0 && inlineRows.every(r => !r.sku && !r.name) && (
-                  <tr><td colSpan={14} style={{ textAlign: 'center', padding: 28, color: '#3a6a82', fontSize: 13 }}>No products</td></tr>
+                  <tr><td colSpan={16} style={{ textAlign: 'center', padding: 28, color: '#3a6a82', fontSize: 13 }}>No products</td></tr>
                 )}
                 {products.map(p => (
                   <tr key={p.id}>
@@ -148,22 +150,15 @@ function ProductModule() {
                     <td style={{ fontSize: 12, color: '#7a9fb5' }}>{p.category}</td>
                     <td><span style={{ background: 'rgba(0,188,212,0.1)', color: '#00E5FF', padding: '2px 8px', borderRadius: 4, fontSize: 11, fontWeight: 700 }}>{p.mainUnit || '-'}</span></td>
                     <td><span style={{ background: 'rgba(0,204,136,0.1)', color: '#00CC88', padding: '2px 8px', borderRadius: 4, fontSize: 11, fontWeight: 700 }}>{p.subUnit || '-'}</span></td>
-                    <td>฿{Number(p.price).toLocaleString()}</td>
                     <td style={{ fontFamily: 'monospace', fontSize: 12, color: '#00E5FF' }}>{p.batNumber || '-'}</td>
                     <td style={{ fontFamily: 'monospace', fontSize: 12, color: '#00CC88' }}>{p.lotNumber || '-'}</td>
                     <td style={{ fontSize: 12 }}>{p.manufactureDate || '-'}</td>
                     <td style={{ fontSize: 12, color: p.expiryDate ? '#FFD700' : undefined }}>{p.expiryDate || '-'}</td>
-                    <td style={{ fontSize: 11, color: '#a0c8dc', whiteSpace: 'nowrap' }}>
-                      {p.weightKg ? <span>{p.weightKg} KG</span> : ''}
-                      {p.weightKg && p.weightG ? <span style={{ color: '#3a6a82' }}> / </span> : ''}
-                      {p.weightG ? <span>{p.weightG} G</span> : ''}
-                      {!p.weightKg && !p.weightG ? '-' : ''}
-                    </td>
-                    <td style={{ fontSize: 11, color: '#a0c8dc', whiteSpace: 'nowrap' }}>
-                      {(p.dimW || p.dimL || p.dimH)
-                        ? `${p.dimW || '?'} × ${p.dimL || '?'} × ${p.dimH || '?'} cm`
-                        : '-'}
-                    </td>
+                    <td style={{ fontSize: 12, color: '#a0c8dc', textAlign: 'center' }}>{p.weightKg || '-'}</td>
+                    <td style={{ fontSize: 12, color: '#a0c8dc', textAlign: 'center' }}>{p.weightG || '-'}</td>
+                    <td style={{ fontSize: 12, color: '#a0c8dc', textAlign: 'center' }}>{p.dimW || '-'}</td>
+                    <td style={{ fontSize: 12, color: '#a0c8dc', textAlign: 'center' }}>{p.dimL || '-'}</td>
+                    <td style={{ fontSize: 12, color: '#a0c8dc', textAlign: 'center' }}>{p.dimH || '-'}</td>
                     <td>
                       <button className="action-btn edit" onClick={() => openEdit(p)}>✏️</button>
                     </td>
@@ -194,13 +189,15 @@ function ProductModule() {
                           {SUB_UNIT_GROUPS.map(g => <optgroup key={g.group} label={g.group}>{g.units.map(u => <option key={u.value} value={u.value}>{u.value}</option>)}</optgroup>)}
                         </select>
                       </td>
-                      <td><input type="number" min="0" value={row.price} onChange={e => updateInlineRow(idx, 'price', e.target.value)} placeholder="0" style={{ ...iStyle, maxWidth: 70 }} /></td>
                       <td><input value={row.batNumber} onChange={e => updateInlineRow(idx, 'batNumber', e.target.value)} placeholder="BAT-001" style={iStyle} /></td>
                       <td><input value={row.lotNumber} onChange={e => updateInlineRow(idx, 'lotNumber', e.target.value)} placeholder="LOT-001" style={iStyle} /></td>
                       <td><input type="date" value={row.manufactureDate} onChange={e => updateInlineRow(idx, 'manufactureDate', e.target.value)} style={iStyle} /></td>
                       <td><input type="date" value={row.expiryDate} onChange={e => updateInlineRow(idx, 'expiryDate', e.target.value)} style={iStyle} /></td>
-                      <td style={{ color: '#3a6a82', fontSize: 11 }}>-</td>
-                      <td style={{ color: '#3a6a82', fontSize: 11 }}>-</td>
+                      <td style={{ color: '#3a6a82', fontSize: 11, textAlign: 'center' }}>-</td>
+                      <td style={{ color: '#3a6a82', fontSize: 11, textAlign: 'center' }}>-</td>
+                      <td style={{ color: '#3a6a82', fontSize: 11, textAlign: 'center' }}>-</td>
+                      <td style={{ color: '#3a6a82', fontSize: 11, textAlign: 'center' }}>-</td>
+                      <td style={{ color: '#3a6a82', fontSize: 11, textAlign: 'center' }}>-</td>
                       <td>
                         <button onClick={() => saveInlineRow(idx)} style={{ background: 'rgba(0,204,136,0.15)', color: '#00CC88', border: '1px solid rgba(0,204,136,0.3)', borderRadius: 4, padding: '3px 10px', fontSize: 12, cursor: 'pointer', fontWeight: 700 }}>+ Save</button>
                       </td>

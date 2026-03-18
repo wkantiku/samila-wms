@@ -240,6 +240,71 @@
 
 .mono { font-family: 'Courier New', monospace; }
 
+/* =============== NOTIFICATION =============== */
+.tarif-notify {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 16px; border-radius: 6px; margin-bottom: 14px;
+  font-size: 13px; font-weight: 600; animation: fadeUp 0.3s ease;
+}
+.tarif-notify-success {
+  background: rgba(0,204,136,0.12); border: 1px solid rgba(0,204,136,0.3); color: #00CC88;
+}
+.tarif-notify-error {
+  background: rgba(255,107,107,0.1); border: 1px solid rgba(255,107,107,0.3); color: #FF6B6B;
+}
+
+/* =============== UNIT BADGE =============== */
+.unit-badge {
+  display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px;
+  font-weight: 700; letter-spacing: 0.4px; font-family: 'Courier New', monospace;
+  background: rgba(0,188,212,0.1); color: #00BCD4; border: 1px solid rgba(0,188,212,0.2);
+}
+
+/* =============== BILLING TAB =============== */
+.billing-period-row {
+  display: flex; align-items: flex-end; gap: 16px; flex-wrap: wrap; margin-bottom: 22px;
+}
+.billing-period-row .tarif-field { min-width: 160px; }
+.billing-calc-action { padding-bottom: 0; }
+
+.billing-summary-card {
+  background: rgba(0,188,212,0.05); border: 1px solid rgba(0,188,212,0.2);
+  border-radius: 10px; padding: 20px 24px; max-width: 460px; margin-bottom: 24px;
+}
+.billing-summary-title {
+  font-size: 13px; font-weight: 700; color: #a0c8dc; text-transform: uppercase;
+  letter-spacing: 0.6px; margin-bottom: 14px;
+}
+.billing-breakdown-row {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 6px 0; font-size: 13px;
+}
+.billing-row-label { color: #7a9fb5; }
+.billing-row-value { color: #cce4ef; font-weight: 600; font-family: 'Courier New', monospace; }
+.billing-divider {
+  border: none; border-top: 1px solid rgba(0,188,212,0.15); margin: 10px 0;
+}
+.billing-total-row .billing-row-label { color: #ffffff; font-weight: 700; font-size: 14px; }
+.billing-total-row .billing-row-value { color: #00E5FF; font-size: 16px; font-weight: 800; }
+.billing-actions { margin-top: 16px; }
+
+.billing-loading { color: #5a8fa8; font-size: 13px; padding: 12px 0; }
+.billing-empty   { color: #3a6a82; font-size: 13px; padding: 20px 0; }
+
+.billing-inv-header {
+  display: flex; align-items: center; flex-wrap: wrap; gap: 12px;
+  margin-bottom: 16px; padding-bottom: 10px;
+  border-bottom: 1px solid rgba(0,188,212,0.1);
+}
+.billing-inv-header h3 { font-size: 14px; font-weight: 700; color: #a0c8dc; text-transform: uppercase; }
+
+/* Invoice status badge */
+.inv-status-badge {
+  display: inline-block; padding: 3px 10px; border-radius: 4px;
+  font-size: 11px; font-weight: 700; letter-spacing: 0.4px;
+  border: 1px solid;
+}
+
 @media (max-width: 768px) {
   .tarif-container { padding: 14px; }
   .tarif-grid { grid-template-columns: 1fr; }

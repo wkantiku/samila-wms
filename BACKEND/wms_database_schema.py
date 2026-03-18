@@ -241,22 +241,23 @@ class ReceivingItem(Base):
 class Inventory(Base):
     """Product Inventory Levels"""
     __tablename__ = 'inventory'
-    
+
     id = Column(Integer, primary_key=True)
-    warehouse_id = Column(Integer, ForeignKey('warehouses.id'), nullable=False)
+    warehouse_id = Column(Integer, ForeignKey('warehouses.id'), nullable=True)
     location_id = Column(Integer, ForeignKey('locations.id'))
     product_id = Column(Integer, ForeignKey('products.id'), nullable=False)
     batch_number = Column(String(50))
     lot_number = Column(String(50))
     serial_number = Column(String(50))
-    quantity_on_hand = Column(Float, nullable=False)
+    quantity_on_hand = Column(Float, default=0)
     quantity_reserved = Column(Float, default=0)
-    quantity_available = Column(Float)
+    quantity_available = Column(Float, default=0)
+    customer = Column(String(255))          # customer name (flat, no FK)
     received_date = Column(DateTime)
     manufacture_date = Column(Date)
     expiry_date = Column(Date)
     last_count_date = Column(DateTime)
-    status = Column(String(50))  # GOOD, DAMAGED, EXPIRED, HOLD
+    status = Column(String(50), default='GOOD')  # GOOD, DAMAGED, EXPIRED, HOLD
     last_updated = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
     # Relationships
@@ -314,10 +315,10 @@ class StockCount(Base):
 class SalesOrder(Base):
     """Sales Orders from Customer"""
     __tablename__ = 'sales_orders'
-    
+
     id = Column(Integer, primary_key=True)
-    customer_id = Column(Integer, ForeignKey('customers.id'), nullable=False)
-    warehouse_id = Column(Integer, ForeignKey('warehouses.id'), nullable=False)
+    customer_id = Column(Integer, ForeignKey('customers.id'), nullable=True)
+    warehouse_id = Column(Integer, ForeignKey('warehouses.id'), nullable=True)
     so_number = Column(String(50), unique=True, nullable=False)
     so_date = Column(DateTime, nullable=False)
     requested_delivery_date = Column(DateTime)
@@ -344,7 +345,9 @@ class SalesOrderItem(Base):
     
     id = Column(Integer, primary_key=True)
     so_id = Column(Integer, ForeignKey('sales_orders.id'), nullable=False)
-    product_id = Column(Integer, ForeignKey('products.id'), nullable=False)
+    product_id = Column(Integer, ForeignKey('products.id'), nullable=True)
+    product_name = Column(String(255))      # flat name for display
+    unit = Column(String(20), default='PCS')
     line_number = Column(Integer)
     quantity_ordered = Column(Float, nullable=False)
     quantity_allocated = Column(Float, default=0)
@@ -352,9 +355,10 @@ class SalesOrderItem(Base):
     quantity_shipped = Column(Float, default=0)
     unit_price = Column(Numeric(12, 2))
     line_amount = Column(Numeric(12, 2))
-    
+
     # Relationships
     sales_order = relationship("SalesOrder", back_populates="line_items")
+    product = relationship("Product", foreign_keys=[product_id])
 
 
 class PickingList(Base):
@@ -362,14 +366,17 @@ class PickingList(Base):
     __tablename__ = 'picking_lists'
     
     id = Column(Integer, primary_key=True)
-    so_id = Column(Integer, ForeignKey('sales_orders.id'), nullable=False)
-    warehouse_id = Column(Integer, ForeignKey('warehouses.id'), nullable=False)
+    so_id = Column(Integer, ForeignKey('sales_orders.id'), nullable=True)
+    warehouse_id = Column(Integer, ForeignKey('warehouses.id'), nullable=True)
     pick_number = Column(String(50), unique=True, nullable=False)
     pick_date = Column(DateTime, nullable=False)
+    customer_name = Column(String(255))     # flat name for display
     total_items = Column(Integer)
-    status = Column(String(50), default='CREATED')  # CREATED, IN_PROGRESS, COMPLETED, CANCELLED
+    status = Column(String(50), default='PENDING')  # PENDING, IN_PROGRESS, COMPLETED, CANCELLED
     picked_by = Column(String(100))
     verified_by = Column(String(100))
+    created_by = Column(String(100))
+    completed_at = Column(DateTime)
     pick_start_time = Column(DateTime)
     pick_end_time = Column(DateTime)
     remarks = Column(Text)
@@ -386,14 +393,18 @@ class PickingItem(Base):
     
     id = Column(Integer, primary_key=True)
     pick_id = Column(Integer, ForeignKey('picking_lists.id'), nullable=False)
-    product_id = Column(Integer, ForeignKey('products.id'), nullable=False)
+    product_id = Column(Integer, ForeignKey('products.id'), nullable=True)
+    product_name = Column(String(255))      # flat name
+    from_location = Column(String(100))
+    unit = Column(String(20), default='PCS')
+    lot_number = Column(String(50))
     location_id = Column(Integer, ForeignKey('locations.id'))
     batch_number = Column(String(50))
     serial_number = Column(String(50))
     barcode = Column(String(50))
     quantity_to_pick = Column(Float, nullable=False)
     quantity_picked = Column(Float, default=0)
-    pick_status = Column(String(50))  # PENDING, PICKED, VERIFIED
+    pick_status = Column(String(50), default='PENDING')  # PENDING, PICKED, VERIFIED
     picked_at = Column(DateTime)
     verified_at = Column(DateTime)
     

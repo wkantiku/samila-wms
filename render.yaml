@@ -1,13 +1,25 @@
+databases:
+  # ── PostgreSQL (Free Tier) ─────────────────────────────
+  - name: samila-wms-db
+    databaseName: samila_wms
+    user: samila
+    plan: free
+
 services:
-  # ── FastAPI Backend ───────────────────────────────────
+  # ── FastAPI Backend ────────────────────────────────────
   - type: web
     name: samila-wms-backend
     runtime: docker
     dockerfilePath: BACKEND/Dockerfile
     dockerContext: BACKEND
     branch: master
+    plan: free
     healthCheckPath: /health
     envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: samila-wms-db
+          property: connectionString
       - key: PORT
         value: 8000
       - key: SECRET_KEY
@@ -17,18 +29,18 @@ services:
       - key: ACCESS_TOKEN_EXPIRE_MINUTES
         value: 60
 
-  # ── React Frontend ────────────────────────────────────
-  # หลัง backend deploy แล้ว ไปตั้ง REACT_APP_API_URL ใน Render Dashboard
-  # Environment → Add Environment Variable:
-  #   Key:   REACT_APP_API_URL
-  #   Value: https://samila-wms-backend.onrender.com
+  # ── React Frontend ─────────────────────────────────────
   - type: web
     name: samila-wms-frontend
     runtime: docker
     dockerfilePath: FRONTEND/Dockerfile
     dockerContext: FRONTEND
     branch: master
+    plan: free
     healthCheckPath: /
+    dockerBuildArgs:
+      - name: REACT_APP_API_URL
+        value: https://samila-wms-backend.onrender.com
     envVars:
       - key: REACT_APP_API_URL
         value: https://samila-wms-backend.onrender.com

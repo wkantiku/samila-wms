@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { UNIT_GROUPS } from '../../constants/units';
+import { shippingApi } from '../../services/api';
 
 function ShippingModule() {
   const { t, i18n } = useTranslation();
@@ -8,6 +9,41 @@ function ShippingModule() {
   const [items, setItems] = useState([
     { id: 1, entryNumber: 'EN-2026-0001', sku: 'SKU001', quantity: 100, box: 'BOX001', unit: 'PCS' }
   ]);
+  const [form, setForm] = useState({ soNumber: '', carrier: '', tracking: '', weight: '', delivery: '' });
+  const [submitting, setSubmitting] = useState(false);
+  const [notify, setNotify] = useState(null);
+
+  const setField = (field) => (e) => setForm(prev => ({ ...prev, [field]: e.target.value }));
+
+  const showNotify = (msg, type = 'success') => {
+    setNotify({ msg, type });
+    setTimeout(() => setNotify(null), 3500);
+  };
+
+  const handleShip = async (e) => {
+    e.preventDefault();
+    if (!form.soNumber.trim()) { showNotify('กรุณากรอก SO Number', 'error'); return; }
+    if (!form.carrier.trim())  { showNotify('กรุณากรอก Carrier', 'error'); return; }
+    setSubmitting(true);
+    try {
+      await shippingApi.ship({ ...form, weight: Number(form.weight), weightUnit, items });
+      showNotify(`จัดส่งสำเร็จ — ${form.soNumber}`);
+      setForm({ soNumber: '', carrier: '', tracking: '', weight: '', delivery: '' });
+    } catch (err) {
+      showNotify(err.message || 'เกิดข้อผิดพลาด', 'error');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleScan = async (item) => {
+    try {
+      const result = await shippingApi.track(item.entryNumber);
+      showNotify(`Scan OK — ${item.sku} → ${result?.status || 'tracked'}`, 'info');
+    } catch {
+      showNotify(`Scanned: ${item.sku} (${item.entryNumber})`, 'info');
+    }
+  };
 
   const toggleLanguage = () => {
     const newLang = i18n.language === 'en' ? 'th' : 'en';
@@ -34,25 +70,33 @@ function ShippingModule() {
       </div>
 
       <div className="module-content">
+        {notify && (
+          <div style={{ margin: '0 0 12px', padding: '10px 16px', borderRadius: 8, fontSize: 13, fontWeight: 600,
+            background: notify.type === 'error' ? 'rgba(255,107,107,0.12)' : 'rgba(0,204,136,0.12)',
+            border: `1px solid ${notify.type === 'error' ? 'rgba(255,107,107,0.35)' : 'rgba(0,204,136,0.35)'}`,
+            color: notify.type === 'error' ? '#FF6B6B' : '#00CC88' }}>
+            {notify.msg}
+          </div>
+        )}
         <div className="shipping-container">
-          <form className="shipping-form">
+          <form className="shipping-form" onSubmit={handleShip}>
             <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12,maxWidth:640}}>
               <div className="form-group" style={{marginBottom:0}}>
                 <label>{t('shipping.soNumber')}</label>
-                <input type="text" placeholder="SO-2026-0001" />
+                <input type="text" placeholder="SO-2026-0001" value={form.soNumber} onChange={setField('soNumber')} />
               </div>
               <div className="form-group" style={{marginBottom:0}}>
                 <label>{t('shipping.carrier')}</label>
-                <input type="text" placeholder="Kerry Express" />
+                <input type="text" placeholder="Kerry Express" value={form.carrier} onChange={setField('carrier')} />
               </div>
               <div className="form-group" style={{marginBottom:0}}>
                 <label>{t('shipping.tracking')}</label>
-                <input type="text" placeholder="TRACK123456" />
+                <input type="text" placeholder="TRACK123456" value={form.tracking} onChange={setField('tracking')} />
               </div>
               <div className="form-group" style={{marginBottom:0}}>
                 <label>{t('shipping.weight')}</label>
                 <div style={{display:'flex',gap:6}}>
-                  <input type="number" placeholder="0" style={{width:90}} />
+                  <input type="number" placeholder="0" style={{width:90}} value={form.weight} onChange={setField('weight')} />
                   <select value={weightUnit} onChange={e => setWeightUnit(e.target.value)} style={unitSelectStyle}>
                     <optgroup label={t('shipping.weightUnitGroup')}>
                       <option value="G">g – กรัม</option>
@@ -66,9 +110,11 @@ function ShippingModule() {
             </div>
             <div className="form-group" style={{maxWidth:640,marginTop:12}}>
               <label>{t('shipping.delivery')}</label>
-              <textarea placeholder="Delivery address" style={{minHeight:70}}></textarea>
+              <textarea placeholder="Delivery address" style={{minHeight:70}} value={form.delivery} onChange={setField('delivery')}></textarea>
             </div>
-            <button type="submit" className="ship-btn">📤 {t('shipping.ship')}</button>
+            <button type="submit" className="ship-btn" disabled={submitting}>
+              {submitting ? '⏳ กำลังส่ง...' : `📤 ${t('shipping.ship')}`}
+            </button>
           </form>
 
           <div className="shipping-items">
@@ -101,7 +147,7 @@ function ShippingModule() {
                       </select>
                     </td>
                     <td>{item.box}</td>
-                    <td><button className="scan-btn">📱</button></td>
+                    <td><button type="button" className="scan-btn" onClick={() => handleScan(item)}>📱</button></td>
                   </tr>
                 ))}
               </tbody>

@@ -9,20 +9,22 @@ Version: 1.0.0
 ================================================================================
 """
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import JSONResponse
 import logging
+import os
 from datetime import datetime
 
 # Import database and models
 from wms_database_schema import Base, engine
 
-# Import routes/routers (to be imported when created)
-# from routes import receiving_routes, inventory_routes, product_routes
-# from routes import picking_routes, shipping_routes, tarif_routes
+# Import routes/routers
+from tarif_billing_api import router as tarif_router
+from routers import auth, users, warehouses, customers, products
+from routers import inventory, receiving, orders, picking, putaway, shipping, cs, reports
 
 # Configure logging
 logging.basicConfig(
@@ -41,20 +43,39 @@ app = FastAPI(
     openapi_url="/openapi.json"
 )
 
-# Configure CORS
+# ── CORS — restrict to known origins ────────────────────────────────────────
+_raw_origins = os.getenv(
+    "ALLOWED_ORIGINS",
+    "http://localhost:3000,http://localhost:80,https://samila-wms.onrender.com"
+)
+ALLOWED_ORIGINS = [o.strip() for o in _raw_origins.split(",") if o.strip()]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=ALLOWED_ORIGINS,
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allow_headers=["Authorization", "Content-Type", "Accept", "X-Request-ID"],
 )
 
-# Add trusted host middleware
+# ── Trusted hosts ────────────────────────────────────────────────────────────
+_raw_hosts = os.getenv("ALLOWED_HOSTS", "localhost,127.0.0.1,samila-wms.onrender.com")
+ALLOWED_HOSTS = [h.strip() for h in _raw_hosts.split(",") if h.strip()]
+
 app.add_middleware(
     TrustedHostMiddleware,
-    allowed_hosts=["*"]
+    allowed_hosts=ALLOWED_HOSTS
 )
+
+# ── Security response headers middleware ─────────────────────────────────────
+@app.middleware("http")
+async def add_security_headers(request: Request, call_next):
+    response = await call_next(request)
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"]        = "DENY"
+    response.headers["X-XSS-Protection"]       = "1; mode=block"
+    response.headers["Referrer-Policy"]        = "strict-origin-when-cross-origin"
+    return response
 
 # Create database tables
 Base.metadata.create_all(bind=engine)
@@ -109,13 +130,21 @@ async def api_info():
 # API Modules (to be included)
 # ============================================================================
 
-# Include routers when they are created
-# app.include_router(receiving_routes.router, prefix="/api/receiving", tags=["Receiving"])
-# app.include_router(inventory_routes.router, prefix="/api/inventory", tags=["Inventory"])
-# app.include_router(product_routes.router, prefix="/api/product", tags=["Product"])
-# app.include_router(picking_routes.router, prefix="/api/picking", tags=["Picking"])
-# app.include_router(shipping_routes.router, prefix="/api/shipping", tags=["Shipping"])
-# app.include_router(tarif_routes.router, prefix="/api/tarif", tags=["Tariff"])
+# Include routers
+app.include_router(tarif_router)
+app.include_router(auth.router)
+app.include_router(users.router)
+app.include_router(warehouses.router)
+app.include_router(customers.router)
+app.include_router(products.router)
+app.include_router(inventory.router)
+app.include_router(receiving.router)
+app.include_router(orders.router)
+app.include_router(picking.router)
+app.include_router(putaway.router)
+app.include_router(shipping.router)
+app.include_router(cs.router)
+app.include_router(reports.router)
 
 # ============================================================================
 # Exception Handlers
@@ -139,9 +168,14 @@ async def global_exception_handler(request, exc):
 
 @app.on_event("startup")
 async def startup_event():
-    """Startup event handler"""
+    """Startup event handler — auto-seed initial data"""
     logger.info("🚀 SAMILA WMS 3PL API is starting...")
-    logger.info("✅ Database connected")
+    try:
+        from seed import seed
+        seed()
+        logger.info("✅ Database seeded")
+    except Exception as e:
+        logger.warning(f"Seed skipped: {e}")
     logger.info("✅ All services initialized")
 
 @app.on_event("shutdown")

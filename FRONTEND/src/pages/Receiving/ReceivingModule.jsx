@@ -164,7 +164,7 @@ function ReceivingModule({ onReceive, onPutaway, receivingOrders, setReceivingOr
       const result = await response.json();
       alert(`${t('messages.imported')}: ${result.imported_count} ${t('receiving.items')}`);
     } catch (error) {
-      console.error('Import error:', error);
+      /* import error handled by alert below */
       alert(t('messages.error'));
     }
   };
@@ -175,7 +175,7 @@ function ReceivingModule({ onReceive, onPutaway, receivingOrders, setReceivingOr
       const result = await response.json();
       window.location.href = result.file_url;
     } catch (error) {
-      console.error('Export error:', error);
+      /* export error — silently ignore */
     }
   };
 

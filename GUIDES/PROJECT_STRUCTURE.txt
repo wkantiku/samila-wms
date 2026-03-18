@@ -1,0 +1,247 @@
+SAMILA_WMS_3PL_PROJECT/
+│
+├── 📁 BACKEND/
+│   ├── src/
+│   │   ├── models/
+│   │   │   ├── __init__.py
+│   │   │   ├── wms_models.py              (40+ Database models)
+│   │   │   ├── tarif_models.py            (Tariff system)
+│   │   │   └── audit_models.py
+│   │   ├── routes/
+│   │   │   ├── __init__.py
+│   │   │   ├── receiving_routes.py        (Receiving API)
+│   │   │   ├── inventory_routes.py        (Inventory API)
+│   │   │   ├── product_routes.py          (Product API)
+│   │   │   ├── picking_routes.py          (Picking API)
+│   │   │   ├── shipping_routes.py         (Shipping API)
+│   │   │   ├── tarif_routes.py            (Tariff API)
+│   │   │   ├── import_export_routes.py    (Excel/PDF Import-Export)
+│   │   │   └── report_routes.py           (Reports)
+│   │   ├── services/
+│   │   │   ├── __init__.py
+│   │   │   ├── receiving_service.py       (Business logic)
+│   │   │   ├── inventory_service.py
+│   │   │   ├── picking_service.py
+│   │   │   ├── shipping_service.py
+│   │   │   ├── tarif_service.py
+│   │   │   ├── excel_service.py           (Excel import/export)
+│   │   │   ├── pdf_service.py             (PDF generation)
+│   │   │   └── billing_service.py
+│   │   ├── config/
+│   │   │   ├── __init__.py
+│   │   │   ├── database.py                (DB configuration)
+│   │   │   ├── settings.py                (App settings)
+│   │   │   ├── security.py                (JWT, Auth)
+│   │   │   └── constants.py               (Constants)
+│   │   └── utils/
+│   │       ├── __init__.py
+│   │       ├── validators.py
+│   │       ├── decorators.py
+│   │       ├── helpers.py
+│   │       └── logger.py
+│   ├── main.py                            (FastAPI application)
+│   ├── requirements.txt                   (Python dependencies)
+│   ├── .env.example                       (Environment template)
+│   ├── alembic/                          (Database migrations)
+│   │   ├── versions/
+│   │   ├── env.py
+│   │   └── alembic.ini
+│   └── tests/
+│       ├── unit/
+│       ├── integration/
+│       └── conftest.py
+│
+├── 📁 FRONTEND/
+│   ├── public/
+│   │   ├── index.html
+│   │   ├── favicon.ico                    (SAMILA logo)
+│   │   ├── logo.png                       (Full logo)
+│   │   └── manifest.json
+│   ├── src/
+│   │   ├── components/
+│   │   │   ├── Logo/
+│   │   │   │   ├── SamilaLogo.jsx
+│   │   │   │   └── SamilaLogo.css
+│   │   │   ├── Header/
+│   │   │   │   ├── Header.jsx
+│   │   │   │   └── Header.css
+│   │   │   ├── Sidebar/
+│   │   │   │   ├── Sidebar.jsx
+│   │   │   │   └── Sidebar.css
+│   │   │   └── Common/
+│   │   │       ├── StatusCard.jsx
+│   │   │       ├── DataTable.jsx
+│   │   │       └── Form.jsx
+│   │   ├── pages/
+│   │   │   ├── Dashboard/
+│   │   │   │   ├── Dashboard.jsx
+│   │   │   │   └── Dashboard.css
+│   │   │   ├── Receiving/
+│   │   │   │   ├── ReceivingModule.jsx
+│   │   │   │   ├── ReceivingModule.css
+│   │   │   │   ├── ReceivingList.jsx
+│   │   │   │   ├── ReceivingForm.jsx
+│   │   │   │   └── ReceivingImport.jsx
+│   │   │   ├── Inventory/
+│   │   │   │   ├── InventoryModule.jsx
+│   │   │   │   ├── InventoryModule.css
+│   │   │   │   ├── StockCheck.jsx
+│   │   │   │   └── InventoryMovement.jsx
+│   │   │   ├── Product/
+│   │   │   │   ├── ProductModule.jsx
+│   │   │   │   ├── ProductModule.css
+│   │   │   │   └── ProductImport.jsx
+│   │   │   ├── Picking/
+│   │   │   │   ├── PickingModule.jsx
+│   │   │   │   └── PickingModule.css
+│   │   │   ├── Shipping/
+│   │   │   │   ├── ShippingModule.jsx
+│   │   │   │   └── ShippingModule.css
+│   │   │   ├── Tarif/
+│   │   │   │   ├── TarifManagement.jsx
+│   │   │   │   └── TarifManagement.css
+│   │   │   └── Reports/
+│   │   │       ├── ReportsModule.jsx
+│   │   │       └── ReportsModule.css
+│   │   ├── i18n/
+│   │   │   ├── i18n.js
+│   │   │   └── locales/
+│   │   │       ├── en.json
+│   │   │       └── th.json
+│   │   ├── utils/
+│   │   │   ├── api.js
+│   │   │   ├── auth.js
+│   │   │   └── helpers.js
+│   │   ├── styles/
+│   │   │   ├── index.css
+│   │   │   ├── oracle.css               (Oracle design system)
+│   │   │   └── responsive.css
+│   │   ├── App.jsx
+│   │   └── index.js
+│   ├── package.json
+│   ├── .env.example
+│   └── .gitignore
+│
+├── 📁 MOBILE/
+│   ├── android/
+│   │   ├── app/
+│   │   │   └── build.gradle
+│   │   ├── gradle/
+│   │   └── settings.gradle
+│   ├── ios/                              (iOS configuration)
+│   ├── src/
+│   │   ├── screens/
+│   │   │   ├── Dashboard/
+│   │   │   │   └── DashboardScreen.js
+│   │   │   ├── Receiving/
+│   │   │   │   └── ReceivingScreen.js
+│   │   │   ├── Inventory/
+│   │   │   │   └── InventoryScreen.js
+│   │   │   ├── Product/
+│   │   │   │   └── ProductScreen.js
+│   │   │   ├── Picking/
+│   │   │   │   └── PickingScreen.js
+│   │   │   ├── Shipping/
+│   │   │   │   └── ShippingScreen.js
+│   │   │   └── Settings/
+│   │   │       └── SettingsScreen.js
+│   │   ├── components/
+│   │   │   ├── BarcodeScan.js           (Scanner integration)
+│   │   │   ├── Logo.js
+│   │   │   └── Navigation.js
+│   │   ├── services/
+│   │   │   ├── api.js
+│   │   │   ├── storage.js
+│   │   │   └── camera.js                (Camera/Scanner)
+│   │   ├── i18n/
+│   │   │   ├── i18n.js
+│   │   │   └── locales/
+│   │   │       ├── en.json
+│   │   │       └── th.json
+│   │   ├── App.js
+│   │   └── index.js
+│   ├── package.json
+│   ├── app.json
+│   ├── .env.example
+│   └── .gitignore
+│
+├── 📁 DATABASE/
+│   ├── migrations/                      (Alembic migrations)
+│   │   ├── versions/
+│   │   └── versions_history.txt
+│   ├── backups/
+│   │   └── README.md                    (Backup procedures)
+│   ├── init_scripts/
+│   │   ├── init_database.sql            (Create tables)
+│   │   ├── seed_data.sql                (Sample data)
+│   │   └── indexes.sql                  (Create indexes)
+│   ├── schemas/
+│   │   ├── receiving_schema.sql
+│   │   ├── inventory_schema.sql
+│   │   ├── tarif_schema.sql
+│   │   └── audit_schema.sql
+│   └── docs/
+│       └── database_design.md
+│
+├── 📁 DOCS/
+│   ├── 📄 INSTALLATION_GUIDE.md         (System installation)
+│   ├── 📄 USER_MANUAL_EN.md             (English manual)
+│   ├── 📄 USER_MANUAL_TH.md             (Thai manual)
+│   ├── 📄 ADMIN_GUIDE.md                (Admin instructions)
+│   ├── 📄 API_DOCUMENTATION.md          (API reference)
+│   ├── 📄 DATABASE_SCHEMA.md            (DB design)
+│   ├── 📄 TROUBLESHOOTING.md            (Problems & solutions)
+│   ├── 📄 ARCHITECTURE.md               (System design)
+│   └── 📁 images/
+│       ├── logo.png                     (SAMILA logo)
+│       ├── screenshots/                 (UI screenshots)
+│       └── diagrams/                    (Architecture diagrams)
+│
+├── 📁 SCRIPTS/
+│   ├── setup.sh                         (Linux/Mac setup)
+│   ├── setup.bat                        (Windows setup)
+│   ├── install_backend.bat              (Install backend)
+│   ├── install_frontend.bat             (Install frontend)
+│   ├── install_mobile.bat               (Install mobile)
+│   ├── start_all.bat                    (Start all services)
+│   ├── build_exe.bat                    (.exe installer creation)
+│   ├── database_migrate.bat             (Database migration)
+│   └── deploy.sh                        (Deployment script)
+│
+├── 📁 INSTALLER/
+│   ├── SAMILA_WMS_3PL_Setup.exe         (Main installer)
+│   ├── setup_script.iss                 (Inno Setup config)
+│   ├── README_INSTALLER.txt
+│   └── LICENSE.txt
+│
+├── 📁 ASSETS/
+│   ├── logos/
+│   │   ├── samila_logo.png              (Main logo)
+│   │   ├── samila_logo.svg              (Vector logo)
+│   │   ├── samila_icon.ico              (Icon)
+│   │   ├── favicon.ico                  (Browser tab)
+│   │   └── logo_variations/             (Different sizes)
+│   ├── screenshots/
+│   │   ├── dashboard.png
+│   │   ├── receiving.png
+│   │   ├── inventory.png
+│   │   └── others...
+│   └── shortcuts/
+│       ├── desktop_shortcut.lnk
+│       └── mobile_shortcut.json
+│
+├── 📁 CONFIG/
+│   ├── development.env
+│   ├── production.env
+│   ├── testing.env
+│   └── docker-compose.yml
+│
+├── 📄 README.md                        (Project overview)
+├── 📄 REQUIREMENTS.md                  (System requirements)
+├── 📄 CHANGELOG.md                     (Version history)
+├── 📄 LICENSE.md                       (License)
+├── 📄 CONTRIBUTING.md                  (Contribution guide)
+├── 📄 CODE_OF_CONDUCT.md              (Code standards)
+├── 📄 PROJECT_CHECKLIST.md             (This checklist)
+├── 📄 QUALITY_ASSURANCE.md             (QA results)
+└── 📄 DEPLOYMENT_CHECKLIST.md          (Deployment ready)

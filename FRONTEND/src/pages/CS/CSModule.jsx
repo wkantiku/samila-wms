@@ -1,4 +1,5 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
+import { csService } from '../../services/csService';
 import './CSModule.css';
 
 const CS_CATEGORIES   = ['Complaint', 'Inquiry', 'Return Request', 'Damage Report', 'Delivery Issue', 'Other'];
@@ -100,6 +101,12 @@ const initCS = [
 ];
 
 export default function CSModule({ cases, setCases }) {
+  useEffect(() => {
+    csService.getAll().then(data => {
+      if (Array.isArray(data) && data.length > 0) setCases(data);
+    }).catch(() => {});
+  }, []);
+
   const [activeTab, setActiveTab] = useState('list');
   const [form, setForm]           = useState(emptyForm);
   const [editId, setEditId]       = useState(null);
@@ -137,9 +144,11 @@ export default function CSModule({ cases, setCases }) {
     if (!form.subject.trim()) { setFormError('กรุณากรอก Subject'); return; }
     setFormError('');
     if (editId) {
+      csService.update(editId, form).catch(() => {});
       setCases(prev => prev.map(c => c.id === editId ? { ...c, ...form } : c));
       if (viewCase?.id === editId) setViewCase({ ...viewCase, ...form });
     } else {
+      csService.create(form).catch(() => {});
       setCases(prev => [{ ...form, id: Date.now(), notes: [] }, ...prev]);
     }
     setActiveTab('list');
@@ -149,6 +158,7 @@ export default function CSModule({ cases, setCases }) {
     setCases(prev => prev.map(c => c.id === id ? { ...c, status } : c));
 
   const handleDelete = () => {
+    csService.delete(deleteId).catch(() => {});
     setCases(prev => prev.filter(c => c.id !== deleteId));
     if (viewCase?.id === deleteId) setViewCase(null);
     setDeleteId(null);
@@ -157,6 +167,7 @@ export default function CSModule({ cases, setCases }) {
   const addNote = () => {
     if (!newNote.trim()) return;
     const note = { id: Date.now(), author: noteAuthor || 'Staff', date: nowStr(), text: newNote.trim(), type: 'update' };
+    csService.addNote(viewCase.id, note.text, note.type).catch(() => {});
     setCases(prev => prev.map(c =>
       c.id === viewCase.id ? { ...c, notes: [...(c.notes||[]), note] } : c
     ));

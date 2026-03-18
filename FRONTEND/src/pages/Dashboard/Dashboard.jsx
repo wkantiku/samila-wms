@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, memo } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
@@ -119,6 +119,22 @@ const newComplaints = [
   { id: 10, color: '#00BCD4', date: '2026-03-08', time: '11:09:27', text: '2 out of 3 items were incomplete.' },
 ];
 
+// Isolated clock component — only this re-renders every second
+const LiveClock = memo(() => {
+  const [now, setNow] = useState(new Date());
+  useEffect(() => {
+    const timer = setInterval(() => setNow(new Date()), 1000);
+    return () => clearInterval(timer);
+  }, []);
+  const dateStr = now.toLocaleDateString('th-TH', { year: 'numeric', month: 'long', day: 'numeric' });
+  return (
+    <>
+      <span className="dash-date">{dateStr}</span>
+      <span className="dash-time-inline">{now.toLocaleTimeString('th-TH')}</span>
+    </>
+  );
+});
+
 const KpiCard = ({ label, value, change, changePositive }) => (
   <div className="kpi-card">
     <div className="kpi-label">{label}</div>
@@ -148,18 +164,12 @@ const CustomTooltip = ({ active, payload, label }) => {
 
 function Dashboard() {
   const { t } = useTranslation();
-  const [currentTime, setCurrentTime] = useState(new Date());
-  const [kpiTargets,  setKpiTargets]  = useState(() => {
+  const [kpiTargets, setKpiTargets] = useState(() => {
     try {
       const s = localStorage.getItem(KPI_KEY);
       return s ? { ...kpiDefaults, ...JSON.parse(s) } : kpiDefaults;
     } catch { return kpiDefaults; }
   });
-
-  useEffect(() => {
-    const timer = setInterval(() => setCurrentTime(new Date()), 1000);
-    return () => clearInterval(timer);
-  }, []);
 
   // Refresh KPI targets when tab becomes visible (user may have saved from KPI module)
   useEffect(() => {
@@ -177,17 +187,14 @@ function Dashboard() {
     };
   }, []);
 
-  const formatDate = (d) => d.toLocaleDateString('th-TH', { year: 'numeric', month: 'long', day: 'numeric' });
-
   return (
     <div className="dashboard">
       {/* Header */}
       <div className="dash-header">
         <div className="dash-title-block">
           <h1 className="dash-title">{t('dashboard.title')}</h1>
-          <span className="dash-date">{formatDate(currentTime)}</span>
+          <LiveClock />
         </div>
-        <div className="dash-time">{currentTime.toLocaleTimeString('th-TH')}</div>
       </div>
 
       {/* Row 1 */}
@@ -420,7 +427,7 @@ function Dashboard() {
                     </div>
                     <div className="capacity-stats">
                       <span>{c.pallets} Pallets</span>
-                      <span>{c.sku} SKUs</span>
+                      <span>{c.sku} Products</span>
                       <span className={`capacity-pct ${warn}`}>{pct}%</span>
                     </div>
                   </div>

@@ -1,20 +1,22 @@
-# ── BB WMS Frontend Dockerfile (Multi-stage) ──────
+# ── Samila WMS Frontend Dockerfile (Multi-stage) ──────
 
 # Stage 1: Build React
 FROM node:20-alpine AS builder
 
-LABEL maintainer="BB Innovation"
+LABEL maintainer="Samila Innovation"
 
 WORKDIR /app
 COPY package*.json ./
 RUN npm ci --silent
 COPY . .
+ARG REACT_APP_API_URL=http://localhost:8000
+ENV REACT_APP_API_URL=$REACT_APP_API_URL
 RUN npm run build
 
 # Stage 2: Serve with Nginx (lightweight)
 FROM nginx:alpine
 
-LABEL description="BB WMS React Frontend"
+LABEL description="Samila WMS React Frontend"
 LABEL version="1.0.0"
 
 # Copy built files

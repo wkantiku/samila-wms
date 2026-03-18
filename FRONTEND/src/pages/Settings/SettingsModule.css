@@ -472,3 +472,160 @@
 @media (max-width: 480px) {
   .form-row-3 { grid-template-columns: 1fr; }
 }
+
+/* ===== EMPLOYEE PERMISSION CHECKBOXES ===== */
+.emp-perm-section {
+  margin-top: 18px;
+  border-top: 1px solid rgba(0,188,212,0.12);
+  padding-top: 14px;
+}
+.emp-perm-header {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 12px;
+}
+.emp-perm-title {
+  font-size: 12px; font-weight: 700;
+  color: #7aafc8; text-transform: uppercase; letter-spacing: 0.5px;
+}
+.emp-perm-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+}
+.emp-perm-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 9px 12px;
+  background: rgba(255,255,255,0.02);
+  border: 1px solid rgba(0,188,212,0.1);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s;
+  user-select: none;
+}
+.emp-perm-item:hover {
+  border-color: rgba(0,188,212,0.3);
+  background: rgba(0,188,212,0.05);
+}
+.emp-perm-item.checked {
+  border-color: rgba(0,188,212,0.4);
+  background: rgba(0,188,212,0.08);
+}
+.emp-perm-box {
+  width: 20px; height: 20px; flex-shrink: 0;
+  border: 2px solid rgba(0,188,212,0.4);
+  border-radius: 4px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 12px; font-weight: 900; color: #00E5FF;
+  transition: all 0.15s;
+}
+.emp-perm-item.checked .emp-perm-box {
+  background: rgba(0,229,255,0.15);
+  border-color: #00E5FF;
+  box-shadow: 0 0 5px rgba(0,229,255,0.25);
+}
+.emp-perm-label {
+  font-size: 12px; font-weight: 600; color: #a0c8dc;
+}
+.emp-perm-item.checked .emp-perm-label { color: #e0f4ff; }
+
+/* ===== SUPER ADMIN PERMISSIONS ===== */
+.superadmin-perm-wrap {
+  padding: 4px 0;
+}
+
+.superadmin-perm-header {
+  display: flex; align-items: center; gap: 14px;
+  background: linear-gradient(135deg, rgba(184,134,11,0.12), rgba(255,215,0,0.06));
+  border: 1px solid rgba(255,215,0,0.25);
+  border-radius: 10px;
+  padding: 14px 20px;
+  margin-bottom: 18px;
+}
+.superadmin-perm-badge {
+  font-size: 18px; font-weight: 900;
+  color: #FFD700;
+  letter-spacing: 0.5px;
+  white-space: nowrap;
+  text-shadow: 0 0 10px rgba(255,215,0,0.4);
+}
+.superadmin-perm-desc {
+  font-size: 13px; color: #a0c8dc;
+}
+
+.superadmin-ctrl-row {
+  display: flex; align-items: center; gap: 10px;
+  margin-bottom: 16px; flex-wrap: wrap;
+}
+.superadmin-ctrl-btn {
+  padding: 6px 16px; border-radius: 6px;
+  font-size: 12px; font-weight: 700; cursor: pointer;
+  transition: all 0.2s;
+}
+.superadmin-ctrl-btn.select-all {
+  background: rgba(0,204,136,0.12);
+  color: #00CC88;
+  border: 1px solid rgba(0,204,136,0.3);
+}
+.superadmin-ctrl-btn.select-all:hover {
+  background: rgba(0,204,136,0.22);
+}
+.superadmin-ctrl-btn.deselect-all {
+  background: rgba(255,107,107,0.1);
+  color: #FF6B6B;
+  border: 1px solid rgba(255,107,107,0.25);
+}
+.superadmin-ctrl-btn.deselect-all:hover {
+  background: rgba(255,107,107,0.2);
+}
+.superadmin-count {
+  font-size: 12px; color: #FFD700; font-weight: 700;
+  margin-left: 6px;
+}
+
+.superadmin-menu-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 10px;
+}
+
+.superadmin-menu-item {
+  display: flex; align-items: center; gap: 12px;
+  padding: 12px 16px;
+  background: #0d2b3e;
+  border: 1px solid rgba(0,188,212,0.1);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.18s;
+  user-select: none;
+}
+.superadmin-menu-item:hover {
+  border-color: rgba(255,215,0,0.3);
+  background: rgba(255,215,0,0.05);
+}
+.superadmin-menu-item.checked {
+  border-color: rgba(255,215,0,0.35);
+  background: rgba(255,215,0,0.07);
+}
+
+.superadmin-check-box {
+  width: 22px; height: 22px; flex-shrink: 0;
+  border: 2px solid rgba(255,215,0,0.4);
+  border-radius: 5px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 13px; font-weight: 900;
+  color: #FFD700;
+  transition: all 0.18s;
+}
+.superadmin-menu-item.checked .superadmin-check-box {
+  background: rgba(255,215,0,0.18);
+  border-color: #FFD700;
+  box-shadow: 0 0 6px rgba(255,215,0,0.3);
+}
+
+.superadmin-menu-label {
+  font-size: 13px; font-weight: 600;
+  color: #cce4ef;
+}
+.superadmin-menu-item.checked .superadmin-menu-label {
+  color: #fff;
+}

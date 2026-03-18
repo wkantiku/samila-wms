@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ZONES, ZONE_OPTIONS } from '../../constants/zones';
 import { BarChart, Bar, LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
@@ -83,16 +83,16 @@ function ReportsModule({
   const { t } = useTranslation();
 
   /* ── Live derived values ── */
-  const todayDate     = new Date();
+  const todayDate     = useMemo(() => new Date(), []);
   const inboundCount  = receivingOrders.length;
-  const outboundCount = pickingOrders.filter(o => o.status === 'COMPLETED').length;
-  const complaintList = csCases.filter(c => c.category === 'Complaint');
-  const activeCS      = csCases.filter(c => c.status === 'Open' || c.status === 'In Progress').length;
+  const outboundCount = useMemo(() => pickingOrders.filter(o => o.status === 'COMPLETED').length, [pickingOrders]);
+  const complaintList = useMemo(() => csCases.filter(c => c.category === 'Complaint'), [csCases]);
+  const activeCS      = useMemo(() => csCases.filter(c => c.status === 'Open' || c.status === 'In Progress').length, [csCases]);
   const complaintRate = csCases.length > 0
     ? ((complaintList.length / csCases.length) * 100).toFixed(1) : '0.0';
 
   /* Expiry items from live inventory (fallback to demo data) */
-  const liveExpiryItems = inventory
+  const liveExpiryItems = useMemo(() => inventory
     .filter(inv => inv.expiryDate)
     .map(inv => {
       const exp      = new Date(inv.expiryDate);
@@ -108,17 +108,20 @@ function ReportsModule({
         batNumber: inv.batNumber || '-', lotNumber: inv.lotNumber || '-',
         mfgDate: inv.manufactureDate || '-', expiryDate: inv.expiryDate, daysLeft, status };
     })
-    .filter(i => i.status !== 'OK');
+    .filter(i => i.status !== 'OK'),
+  [inventory, todayDate]);
 
   const expiryData = liveExpiryItems.length > 0 ? liveExpiryItems : demoExpiryItems;
 
   /* Live customer list from inventory + CS */
-  const liveCustomerNames = [...new Set(
-    [...inventory.map(i => i.customer), ...csCases.map(c => c.customer)].filter(Boolean)
-  )].sort();
-  const liveCustomers = liveCustomerNames.map((name, i) => ({
-    key: name.toLowerCase().replace(/\s+/g, '_') + i, name, code: '', contact: '', phone: '',
-  }));
+  const liveCustomers = useMemo(() => {
+    const names = [...new Set(
+      [...inventory.map(i => i.customer), ...csCases.map(c => c.customer)].filter(Boolean)
+    )].sort();
+    return names.map((name, i) => ({
+      key: name.toLowerCase().replace(/\s+/g, '_') + i, name, code: '', contact: '', phone: '',
+    }));
+  }, [inventory, csCases]);
 
   const [customer, setCustomer]           = useState('');
   const [selectedType, setSelectedType]   = useState(null);
@@ -135,6 +138,21 @@ function ReportsModule({
 
   const canSelectType = !!customer;
   const canGenerate   = !!customer && !!selectedType;
+
+  const filteredExpiry = useMemo(() =>
+    expiryData.filter(i =>
+      (exFilter === 'all' || i.customer === exFilter) &&
+      (exStatusFilter === 'all' || i.status === exStatusFilter)
+    ),
+  [expiryData, exFilter, exStatusFilter]);
+
+  const filteredNonMove = useMemo(() =>
+    allNonMovementItems.filter(i =>
+      (nmFilter === 'all' || i.customer === nmFilter) &&
+      i.ageMonths >= nmMinMonths &&
+      (!nmUnitFilter || i.unit === nmUnitFilter)
+    ),
+  [nmFilter, nmMinMonths, nmUnitFilter]);
 
   const handleGenerate = () => {
     if (!canGenerate) return;
@@ -389,7 +407,7 @@ function ReportsModule({
               </select>
             </div>
             <button className="nm-print-btn" style={{ background: 'rgba(255,215,0,0.15)', borderColor: 'rgba(255,215,0,0.4)', color: '#FFD700' }} onClick={() => {
-              const filtered = expiryData.filter(i => (exFilter === 'all' || i.customer === exFilter) && (exStatusFilter === 'all' || i.status === exStatusFilter));
+              const filtered = filteredExpiry;
               const w = window.open('', '_blank');
               w.document.write(`<html><head><title>Expiry Report</title><style>
                 body{font-family:Arial,sans-serif;margin:0;padding:24px;font-size:12px;color:#222;}
@@ -414,10 +432,7 @@ function ReportsModule({
         </div>
 
         {(() => {
-          const filtered = expiryData.filter(i =>
-            (exFilter === 'all' || i.customer === exFilter) &&
-            (exStatusFilter === 'all' || i.status === exStatusFilter)
-          );
+          const filtered = filteredExpiry;
           const expiredCount  = filtered.filter(i => i.status === 'EXPIRED').length;
           const criticalCount = filtered.filter(i => i.status === 'CRITICAL').length;
           const warningCount  = filtered.filter(i => i.status === 'WARNING').length;
@@ -514,7 +529,7 @@ function ReportsModule({
               </select>
             </div>
             <button className="nm-print-btn" onClick={() => {
-              const filtered = allNonMovementItems.filter(i => (nmFilter === 'all' || i.customer === nmFilter) && i.ageMonths >= nmMinMonths && (!nmUnitFilter || i.unit === nmUnitFilter));
+              const filtered = filteredNonMove;
               const w = window.open('', '_blank');
               w.document.write(`<html><head><title>Non Movement Report</title><style>
                 body{font-family:Arial,sans-serif;margin:0;padding:24px;font-size:12px;color:#222;}
@@ -538,11 +553,7 @@ function ReportsModule({
         </div>
 
         {(() => {
-          const filtered = allNonMovementItems.filter(i =>
-            (nmFilter === 'all' || i.customer === nmFilter) &&
-            i.ageMonths >= nmMinMonths &&
-            (!nmUnitFilter || i.unit === nmUnitFilter)
-          );
+          const filtered = filteredNonMove;
           const totalValue = filtered.reduce((s, i) => s + parseFloat(i.value.replace(/[฿,]/g, '')), 0);
           return (
             <>

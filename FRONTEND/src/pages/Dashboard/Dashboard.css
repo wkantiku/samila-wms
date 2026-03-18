@@ -38,6 +38,14 @@
   letter-spacing: 2px;
 }
 
+.dash-time-inline {
+  font-size: 22px;
+  font-weight: 300;
+  color: #00BCD4;
+  letter-spacing: 2px;
+  margin-left: 16px;
+}
+
 /* ===== ROWS ===== */
 .dash-row {
   display: flex;

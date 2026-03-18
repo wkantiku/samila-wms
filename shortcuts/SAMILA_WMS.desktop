@@ -1,0 +1,22 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=SAMILA WMS
+Comment=SAMILA Warehouse Management System - Nayong Hospital
+Exec=bash -c 'xdg-open http://localhost:3000'
+Icon=samila_logo
+Terminal=false
+Categories=Utility;WebBrowser;Network;
+Keywords=warehouse;management;system;3pl;logistics;innovation;
+
+# SAMILA WMS Desktop Shortcut for Linux
+# Logo: SAMILA Innovation (Nayong Hospital)
+# วิธีใช้: 
+# 1. บันทึกไฟล์นี้เป็น SAMILA_WMS.desktop
+# 2. วางไว้ที่ ~/.local/share/applications/
+# 3. หรือ right-click → Make Executable
+# 4. ลากไปยัง Desktop
+
+# For icon: copy samila_logo.png ไปยัง /usr/share/pixmaps/
+# หรือ ~/.local/share/pixmaps/
+

@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>URL</key>
+	<string>http://localhost:3000</string>
+	<key>Title</key>
+	<string>SAMILA WMS</string>
+	<key>Comments</key>
+	<string>SAMILA Warehouse Management System - Nayong Hospital</string>
+</dict>
+</plist>
+
+<!-- 
+SAMILA WMS - macOS Web Shortcut
+Logo: SAMILA Innovation (Nayong Hospital)
+วิธีใช้: บันทึกเป็น SAMILA_WMS.webloc และวางบน Desktop หรือ Dock
+เมื่อ Double-click จะเปิด http://localhost:3000 ในเบราว์เซอร์ default
+-->

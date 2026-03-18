@@ -1,4 +1,5 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
+import { orderService } from '../../services/orderService';
 import './OrderModule.css';
 
 const ORDER_STATUSES = ['Draft', 'Confirmed', 'Picking', 'Shipped', 'Cancelled'];
@@ -31,6 +32,12 @@ const emptyOrderForm = () => ({
 });
 
 export default function OrderModule({ orders, setOrders, inventory }) {
+  useEffect(() => {
+    orderService.getAll().then(data => {
+      if (Array.isArray(data) && data.length > 0) setOrders(data);
+    }).catch(() => {});
+  }, []);
+
   const [activeTab, setActiveTab] = useState('list');
 
   // Create-order form state
@@ -41,6 +48,7 @@ export default function OrderModule({ orders, setOrders, inventory }) {
   // View / Edit order
   const [viewOrder, setViewOrder] = useState(null);
   const [deleteId, setDeleteId]   = useState(null);
+  const [orderError, setOrderError] = useState('');
 
   /* ── Derived ── */
   const customers = useMemo(() =>
@@ -92,8 +100,9 @@ export default function OrderModule({ orders, setOrders, inventory }) {
 
   /* ── Save order ── */
   const handleSave = (status = 'Draft') => {
-    if (!form.customer)        { alert('กรุณาเลือก Customer'); return; }
-    if (orderLines.length === 0) { alert('กรุณาเพิ่มสินค้าอย่างน้อย 1 รายการ'); return; }
+    if (!form.customer)          { setOrderError('กรุณาเลือก Customer'); return; }
+    if (orderLines.length === 0) { setOrderError('กรุณาเพิ่มสินค้าอย่างน้อย 1 รายการ'); return; }
+    setOrderError('');
     const newOrder = {
       id:        Date.now(),
       orderNo:   form.orderNo,
@@ -105,6 +114,13 @@ export default function OrderModule({ orders, setOrders, inventory }) {
       lines:     orderLines,
       createdAt: new Date().toLocaleString('th-TH'),
     };
+    orderService.create({
+      customer: form.customer,
+      orderDate: form.orderDate,
+      dueDate: '',
+      notes: form.remark,
+      items: orderLines.map(l => ({ sku: l.sku, product: l.product, qty: l.orderQty, unit: l.mainUnit || 'PCS', price: 0 })),
+    }).catch(() => {});
     setOrders(prev => [newOrder, ...prev]);
     setForm(emptyOrderForm());
     setOrderLines([]);
@@ -112,19 +128,23 @@ export default function OrderModule({ orders, setOrders, inventory }) {
     setActiveTab('list');
   };
 
-  const updateOrderStatus = (id, status) =>
+  const updateOrderStatus = (id, status) => {
+    orderService.updateStatus(id, status).catch(() => {});
     setOrders(prev => prev.map(o => o.id === id ? { ...o, status } : o));
+  };
 
   const handleDelete = () => {
+    orderService.delete(deleteId).catch(() => {});
     setOrders(prev => prev.filter(o => o.id !== deleteId));
     setDeleteId(null);
     if (viewOrder?.id === deleteId) setViewOrder(null);
   };
 
-    const openCreate = () => {
+  const openCreate = () => {
     setForm(emptyOrderForm());
     setOrderLines([]);
     setInvFilter('');
+    setOrderError('');
     setActiveTab('create');
   };
 
@@ -426,8 +446,14 @@ export default function OrderModule({ orders, setOrders, inventory }) {
                 </table>
 
                 {/* Save buttons */}
+                {orderError && (
+                  <div style={{ margin: '8px 0', padding: '10px 16px', borderRadius: 8, fontSize: 13, fontWeight: 600,
+                    background: 'rgba(255,107,107,0.12)', border: '1px solid rgba(255,107,107,0.35)', color: '#FF6B6B' }}>
+                    {orderError}
+                  </div>
+                )}
                 <div className="order-save-bar">
-                  <button className="cancel-btn" onClick={() => { setForm(emptyOrderForm()); setOrderLines([]); setActiveTab('list'); }}>
+                  <button className="cancel-btn" onClick={() => { setForm(emptyOrderForm()); setOrderLines([]); setOrderError(''); setActiveTab('list'); }}>
                     ✕ ยกเลิก
                   </button>
                   <button className="btn-draft" onClick={() => handleSave('Draft')}>

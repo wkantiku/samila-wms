@@ -1,12 +1,12 @@
-# ── BB WMS Backend Dockerfile ─────────────────────
+# ── Samila WMS Backend Dockerfile ─────────────────────
 FROM python:3.11-slim
 
-LABEL maintainer="BB Innovation"
-LABEL description="BB WMS FastAPI Backend"
+LABEL maintainer="Samila Innovation"
+LABEL description="Samila WMS FastAPI Backend"
 LABEL version="1.0.0"
 
 # Security: รันด้วย non-root user
-RUN groupadd -r bbwms && useradd -r -g bbwms bbwms
+RUN groupadd -r samila && useradd -r -g samila samila
 
 WORKDIR /app
 
@@ -24,8 +24,8 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY . .
 
 # เปลี่ยน ownership ให้ non-root user
-RUN chown -R bbwms:bbwms /app
-USER bbwms
+RUN chown -R samila:samila /app
+USER samila
 
 # แก้ TrustedHostMiddleware ให้รองรับ external
 ENV PYTHONDONTWRITEBYTECODE=1 \

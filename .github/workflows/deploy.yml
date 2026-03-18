@@ -1,4 +1,4 @@
-name: BB WMS — Build & Deploy
+name: Samila WMS — Build & Deploy
 
 on:
   push:
@@ -8,8 +8,8 @@ on:
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_BACKEND: ${{ github.repository }}/bb-wms-backend
-  IMAGE_FRONTEND: ${{ github.repository }}/bb-wms-frontend
+  IMAGE_BACKEND: ${{ github.repository }}/samila-wms-backend
+  IMAGE_FRONTEND: ${{ github.repository }}/samila-wms-frontend
 
 jobs:
 
@@ -118,8 +118,8 @@ jobs:
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SERVER_SSH_KEY }}
           script: |
-            cd /opt/bb-wms
+            cd /opt/samila-wms
             docker compose pull
             docker compose up -d --remove-orphans
             docker system prune -f
-            echo "[OK] BB WMS deployed successfully"
+            echo "[OK] Samila WMS deployed successfully"

@@ -1,4 +1,4 @@
-name: BB WMS — Security Scan
+name: Samila WMS — Security Scan
 
 on:
   push:

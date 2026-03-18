@@ -50,6 +50,7 @@ export const MAIN_UNIT_GROUPS = [
       { value: 'CM',  label: 'เซนติเมตร – CM' },
       { value: 'M2',  label: 'ตารางเมตร – Sq.M' },
       { value: 'FT2', label: 'ตารางฟุต – Sq.F' },
+      { value: 'CBM', label: 'ลูกบาศก์เมตร – CBM' },
     ],
   },
 ];
@@ -101,6 +102,7 @@ export const SUB_UNIT_GROUPS = [
       { value: 'CM',  label: 'เซนติเมตร – CM' },
       { value: 'M2',  label: 'ตารางเมตร – Sq.M' },
       { value: 'FT2', label: 'ตารางฟุต – Sq.F' },
+      { value: 'CBM', label: 'ลูกบาศก์เมตร – CBM' },
     ],
   },
 ];

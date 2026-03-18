@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
+import { customerService } from '../../services/customerService';
 import './CustomerModule.css';
 
 const initCustomers = [
@@ -16,6 +17,12 @@ const emptyForm = { name: '', address: '', tel: '', taxNo: '', contact: '', emai
 export default function CustomerModule() {
   const { t } = useTranslation();
   const [customers, setCustomers]     = useState(initCustomers);
+
+  useEffect(() => {
+    customerService.getAll().then(data => {
+      if (Array.isArray(data) && data.length > 0) setCustomers(data);
+    }).catch(() => {});
+  }, []);
   const [search, setSearch]           = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
   const [showModal, setShowModal]     = useState(false);
@@ -35,15 +42,32 @@ export default function CustomerModule() {
 
   const handleSave = () => {
     if (!form.name.trim()) { setFormError('กรุณากรอกชื่อลูกค้า'); return; }
+    if (form.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) {
+      setFormError('รูปแบบ Email ไม่ถูกต้อง'); return;
+    }
+    if (form.tel && !/^[\d\-+() ]{6,20}$/.test(form.tel)) {
+      setFormError('รูปแบบเบอร์โทรไม่ถูกต้อง (ตัวเลข, -, +, วงเล็บ)'); return;
+    }
     if (editId) {
+      customerService.update(editId, form).catch(() => {});
       setCustomers(prev => prev.map(c => c.id === editId ? { ...c, ...form } : c));
     } else {
+      customerService.create(form).then(created => {
+        if (created?.id) setCustomers(prev => prev.map(c => c.id === Date.now() ? { ...c, id: created.id } : c));
+      }).catch(() => {});
       setCustomers(prev => [...prev, { id: Date.now(), ...form }]);
     }
     closeModal();
   };
 
-  const toggleStatus = (id) => setCustomers(prev => prev.map(c => c.id === id ? { ...c, status: c.status === 'active' ? 'inactive' : 'active' } : c));
+  const toggleStatus = (id) => {
+    const cust = customers.find(c => c.id === id);
+    if (cust) {
+      const newStatus = cust.status === 'active' ? 'inactive' : 'active';
+      customerService.update(id, { ...cust, status: newStatus }).catch(() => {});
+    }
+    setCustomers(prev => prev.map(c => c.id === id ? { ...c, status: c.status === 'active' ? 'inactive' : 'active' } : c));
+  };
 
   const activeCount   = customers.filter(c => c.status === 'active').length;
   const inactiveCount = customers.filter(c => c.status === 'inactive').length;
@@ -229,7 +253,7 @@ export default function CustomerModule() {
             </div>
             <div className="modal-footer">
               <button className="cancel-btn" onClick={() => setDeleteId(null)}>{t('common.cancel')}</button>
-              <button className="danger-btn" onClick={() => { setCustomers(prev => prev.filter(c => c.id !== deleteId)); setDeleteId(null); }}>
+              <button className="danger-btn" onClick={() => { customerService.delete(deleteId).catch(() => {}); setCustomers(prev => prev.filter(c => c.id !== deleteId)); setDeleteId(null); }}>
                 🗑️ {t('customer.deleteBtn')}
               </button>
             </div>

@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SAMILA WMS - Quick Access</title>
+    <link rel="icon" type="image/png" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='75' font-size='75' fill='%23667eea'>S</text></svg>">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            padding: 40px;
+            max-width: 600px;
+            width: 100%;
+        }
+
+        .logo {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .logo img {
+            max-width: 180px;
+            height: auto;
+            margin-bottom: 20px;
+            border-radius: 10px;
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.2);
+        }
+
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 10px;
+            font-size: 28px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .subtitle {
+            text-align: center;
+            color: #666;
+            margin-bottom: 40px;
+            font-size: 14px;
+        }
+
+        .services {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-bottom: 30px;
+        }
+
+        .service-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 25px;
+            border-radius: 15px;
+            text-align: center;
+            cursor: pointer;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            text-decoration: none;
+            border: none;
+            font-size: 16px;
+            font-weight: 600;
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .service-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 30px rgba(102, 126, 234, 0.6);
+        }
+
+        .service-card .icon {
+            font-size: 28px;
+            margin-bottom: 10px;
+        }
+
+        .service-card .name {
+            font-size: 14px;
+            opacity: 0.9;
+        }
+
+        .status {
+            background: #f5f5f5;
+            padding: 20px;
+            border-radius: 10px;
+            margin-top: 30px;
+        }
+
+        .status h3 {
+            color: #333;
+            margin-bottom: 15px;
+            font-size: 16px;
+        }
+
+        .status-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid #eee;
+            font-size: 14px;
+            color: #666;
+        }
+
+        .status-item:last-child {
+            border-bottom: none;
+        }
+
+        .status-link {
+            color: #667eea;
+            text-decoration: none;
+            font-weight: 600;
+        }
+
+        .status-link:hover {
+            text-decoration: underline;
+        }
+
+        .footer {
+            text-align: center;
+            margin-top: 30px;
+            font-size: 12px;
+            color: #999;
+        }
+
+        .logo-credit {
+            text-align: center;
+            margin-top: 10px;
+            font-size: 11px;
+            color: #bbb;
+        }
+
+        @media (max-width: 600px) {
+            .services {
+                grid-template-columns: 1fr;
+            }
+
+            h1 {
+                font-size: 24px;
+            }
+
+            .container {
+                padding: 25px;
+            }
+
+            .logo img {
+                max-width: 120px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="logo">
+            <!-- SAMILA Innovation Logo -->
+            <svg width="150" height="150" viewBox="0 0 200 220" xmlns="http://www.w3.org/2000/svg" style="margin-bottom: 15px;">
+                <!-- Placeholder for logo - use SAMILA_WMS.html from assets folder -->
+                <image href="../assets/samila_logo.png" width="150" height="150" x="0" y="0"/>
+            </svg>
+            <h1>🏭 SAMILA WMS</h1>
+            <p class="subtitle">Warehouse Management System v1.0.0</p>
+            <p class="logo-credit">© Nayong Hospital, Trang Province, Thailand</p>
+        </div>
+
+        <div class="services">
+            <a href="http://localhost:3000" class="service-card" onclick="openService('Frontend')">
+                <div class="icon">🌐</div>
+                <div class="name">Frontend</div>
+            </a>
+            <a href="http://localhost:8000" class="service-card" onclick="openService('Backend')">
+                <div class="icon">⚙️</div>
+                <div class="name">Backend API</div>
+            </a>
+            <a href="http://localhost:8000/api/docs" class="service-card" onclick="openService('API Docs')">
+                <div class="icon">📚</div>
+                <div class="name">API Docs</div>
+            </a>
+            <a href="http://localhost:15672" class="service-card" onclick="openService('RabbitMQ')">
+                <div class="icon">📨</div>
+                <div class="name">RabbitMQ</div>
+            </a>
+        </div>
+
+        <div class="status">
+            <h3>📋 Quick Reference</h3>
+            <div class="status-item">
+                <span>Frontend (React)</span>
+                <span class="status-link"><a href="http://localhost:3000" class="status-link">3000</a></span>
+            </div>
+            <div class="status-item">
+                <span>Backend (FastAPI)</span>
+                <span class="status-link"><a href="http://localhost:8000" class="status-link">8000</a></span>
+            </div>
+            <div class="status-item">
+                <span>Database (PostgreSQL)</span>
+                <span>5432</span>
+            </div>
+            <div class="status-item">
+                <span>Redis Cache</span>
+                <span>6379</span>
+            </div>
+            <div class="status-item">
+                <span>RabbitMQ</span>
+                <span class="status-link"><a href="http://localhost:15672" class="status-link">15672</a></span>
+            </div>
+        </div>
+
+        <div class="footer">
+            <p><strong>SAMILA Warehouse Management System</strong></p>
+            <p>Nayong Hospital, Trang Province, Thailand</p>
+            <p>Version 1.0.0 | 2026-03-02</p>
+        </div>
+    </div>
+
+    <script>
+        window.addEventListener('load', function() {
+            checkServices();
+        });
+
+        function openService(service) {
+            console.log('Opening ' + service);
+        }
+
+        function checkServices() {
+            fetch('http://localhost:8000/health')
+                .then(response => response.json())
+                .then(data => console.log('✓ Backend is running:', data))
+                .catch(error => console.log('⚠ Backend is not running'));
+        }
+
+        // Keyboard shortcuts
+        document.addEventListener('keydown', function(event) {
+            if (event.key === '1') {
+                window.location.href = 'http://localhost:3000';
+            } else if (event.key === '2') {
+                window.location.href = 'http://localhost:8000';
+            } else if (event.key === '3') {
+                window.location.href = 'http://localhost:8000/api/docs';
+            }
+        });
+    </script>
+</body>
+</html>
