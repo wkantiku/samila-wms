@@ -38,9 +38,6 @@ services:
     branch: master
     plan: free
     healthCheckPath: /
-    dockerBuildArgs:
-      - name: REACT_APP_API_URL
-        value: https://samila-wms-backend.onrender.com
     envVars:
       - key: REACT_APP_API_URL
         value: https://samila-wms-backend.onrender.com
