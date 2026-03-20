@@ -1,0 +1,38 @@
+{
+  "expo": {
+    "name": "Samila WMS 3PL",
+    "slug": "samila-wms-3pl",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "dark",
+    "icon": "./assets/icon.png",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#0a1628"
+    },
+    "android": {
+      "package": "com.samila.wms3pl",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/icon.png",
+        "backgroundColor": "#0a1628"
+      },
+      "permissions": ["android.permission.CAMERA"]
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.samila.wms3pl"
+    },
+    "plugins": [
+      [
+        "expo-camera",
+        { "cameraPermission": "Samila WMS ต้องการใช้กล้องเพื่อสแกน Barcode" }
+      ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "e729a0de-3d14-4b8e-a588-668cba40d588"
+      }
+    }
+  }
+}

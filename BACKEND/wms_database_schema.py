@@ -63,10 +63,13 @@ class Customer(Base):
     tax_id = Column(String(20))
     credit_limit = Column(Float, default=0)
     payment_terms = Column(String(50))
+    logo = Column(Text)
+    credit_days = Column(Integer, default=30)
+    company_no = Column(String(50), nullable=True)
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-    
+
     # Relationships
     sales_orders = relationship("SalesOrder", back_populates="customer")
     invoices = relationship("Invoice", back_populates="customer")
@@ -84,13 +87,19 @@ class Warehouse(Base):
     city = Column(String(100))
     phone = Column(String(20))
     manager_name = Column(String(100))
-    total_capacity = Column(Float)  # m3
+    total_capacity = Column(Float)  # ตร.ม.
+    used_sqm = Column(Float, default=0)
     max_pallet_capacity = Column(Integer)
+    zones = Column(Integer, default=0)
+    staff = Column(Integer, default=0)
+    wh_type = Column(String(100), default='General')
+    icon = Column(String(10), default='🏭')
+    company_no = Column(String(50), default='COMP-001')
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     
     # Relationships
-    locations = relationship("Location", back_populates="warehouse")
+    locations = relationship("Location", back_populates="warehouse", cascade="all, delete-orphan")
 
 
 class Location(Base):
@@ -336,6 +345,7 @@ class SalesOrder(Base):
     customer = relationship("Customer", back_populates="sales_orders")
     line_items = relationship("SalesOrderItem", back_populates="sales_order")
     picking_lists = relationship("PickingList", back_populates="sales_order")
+    packing_orders = relationship("PackingOrder", back_populates="sales_order", foreign_keys="PackingOrder.so_id")
     shipments = relationship("ShipmentOrder", back_populates="sales_order")
 
 
@@ -385,12 +395,13 @@ class PickingList(Base):
     # Relationships
     sales_order = relationship("SalesOrder", back_populates="picking_lists")
     pick_items = relationship("PickingItem", back_populates="picking_list")
+    packing_orders = relationship("PackingOrder", back_populates="picking_list")
 
 
 class PickingItem(Base):
     """Individual Picking Tasks"""
     __tablename__ = 'picking_items'
-    
+
     id = Column(Integer, primary_key=True)
     pick_id = Column(Integer, ForeignKey('picking_lists.id'), nullable=False)
     product_id = Column(Integer, ForeignKey('products.id'), nullable=True)
@@ -407,9 +418,63 @@ class PickingItem(Base):
     pick_status = Column(String(50), default='PENDING')  # PENDING, PICKED, VERIFIED
     picked_at = Column(DateTime)
     verified_at = Column(DateTime)
-    
+
     # Relationships
     picking_list = relationship("PickingList", back_populates="pick_items")
+
+
+# =============== PACKING MODULE MODELS ===============
+
+class PackingOrder(Base):
+    """Packing Orders — after Picking, before Shipping"""
+    __tablename__ = 'packing_orders'
+
+    id = Column(Integer, primary_key=True)
+    pick_id = Column(Integer, ForeignKey('picking_lists.id'), nullable=True)
+    so_id = Column(Integer, ForeignKey('sales_orders.id'), nullable=True)
+    warehouse_id = Column(Integer, ForeignKey('warehouses.id'), nullable=True)
+    pack_number = Column(String(50), unique=True, nullable=False)
+    pack_date = Column(DateTime, nullable=False)
+    customer_name = Column(String(255))
+    total_items = Column(Integer, default=0)
+    total_boxes = Column(Integer, default=0)
+    status = Column(String(50), default='PENDING')  # PENDING, IN_PROGRESS, COMPLETED, CANCELLED
+    packed_by = Column(String(100))
+    verified_by = Column(String(100))
+    created_by = Column(String(100))
+    completed_at = Column(DateTime)
+    remarks = Column(Text)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    # Relationships
+    picking_list = relationship("PickingList", back_populates="packing_orders", foreign_keys=[pick_id])
+    sales_order = relationship("SalesOrder", back_populates="packing_orders", foreign_keys=[so_id])
+    packing_items = relationship("PackingItem", back_populates="packing_order")
+
+
+class PackingItem(Base):
+    """Individual Packing Items"""
+    __tablename__ = 'packing_items'
+
+    id = Column(Integer, primary_key=True)
+    pack_id = Column(Integer, ForeignKey('packing_orders.id'), nullable=False)
+    product_id = Column(Integer, ForeignKey('products.id'), nullable=True)
+    product_name = Column(String(255))
+    sku = Column(String(50))
+    barcode = Column(String(50))
+    unit = Column(String(20), default='PCS')
+    lot_number = Column(String(50))
+    batch_number = Column(String(50))
+    quantity_to_pack = Column(Float, nullable=False)
+    quantity_packed = Column(Float, default=0)
+    box_number = Column(String(50))
+    pack_status = Column(String(50), default='PENDING')  # PENDING, PACKED, VERIFIED
+    packed_at = Column(DateTime)
+
+    # Relationships
+    packing_order = relationship("PackingOrder", back_populates="packing_items")
+    product = relationship("Product", foreign_keys=[product_id])
 
 
 # =============== SHIPPING MODULE MODELS ===============

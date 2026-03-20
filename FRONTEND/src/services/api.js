@@ -46,9 +46,20 @@ async function fetchWithRetry(url, options, retries = MAX_RETRIES) {
 }
 
 // ── Build default headers ─────────────────────────────────────────────────────
+function getToken() {
+  if (_accessToken) return _accessToken;
+  // Fall back to token stored by authService in localStorage
+  try {
+    const s = localStorage.getItem('wms_session');
+    if (s) return JSON.parse(s)?.token || null;
+  } catch {}
+  return null;
+}
+
 function buildHeaders(extra = {}) {
   const headers = { 'Content-Type': 'application/json', ...extra };
-  if (_accessToken) headers['Authorization'] = `Bearer ${_accessToken}`;
+  const token = getToken();
+  if (token) headers['Authorization'] = `Bearer ${token}`;
   return headers;
 }
 
@@ -147,17 +158,31 @@ export const orderApi = {
   remove:       (id)   => api.delete(`/api/v1/wms/orders/${id}`),
 };
 
+export const packingApi = {
+  list:    ()              => api.get('/api/packing'),
+  create:  (body)          => api.post('/api/packing', body),
+  confirm: (id, body)      => api.put(`/api/packing/${id}/confirm`, body),
+  remove:  (id)            => api.delete(`/api/packing/${id}`),
+};
+
 export const shippingApi = {
   ship:  (body) => api.post('/api/v1/wms/shipments', body),
   track: (so)   => api.get(`/api/v1/wms/shipments/track/${so}`),
 };
 
+export const warehouseApi = {
+  list:   ()          => api.get('/api/warehouses'),
+  create: (body)      => api.post('/api/warehouses', body),
+  update: (id, body)  => api.put(`/api/warehouses/${id}`, body),
+  toggle: (id)        => api.patch(`/api/warehouses/${id}/toggle`),
+  remove: (id)        => api.delete(`/api/warehouses/${id}`),
+};
+
 export const customerApi = {
-  list:         ()     => api.get('/api/v1/customers'),
-  create:       (body) => api.post('/api/v1/customers', body),
-  update:       (id, body) => api.put(`/api/v1/customers/${id}`, body),
-  remove:       (id)   => api.delete(`/api/v1/customers/${id}`),
-  toggleStatus: (id)   => api.patch(`/api/v1/customers/${id}/toggle-status`),
+  list:         (companyNo) => api.get(companyNo ? `/api/customers?company_no=${encodeURIComponent(companyNo)}` : '/api/customers'),
+  create:       (body)      => api.post('/api/customers', body),
+  update:       (id, body)  => api.put(`/api/customers/${id}`, body),
+  remove:       (id)        => api.delete(`/api/customers/${id}`),
 };
 
 export default api;

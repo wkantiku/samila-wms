@@ -1,17 +1,19 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { UNIT_GROUPS, MAIN_UNIT_GROUPS, SUB_UNIT_GROUPS } from '../../constants/units';
+import { customerService } from '../../services/customerService';
+import { customerApi } from '../../services/api';
 import './TarifManagement.css';
 
 const API = '/api/v1/tarif';
 
-const CUSTOMER_LIST = [
-  { id: 1, name: 'บริษัท ABC จำกัด' },
-  { id: 2, name: 'บริษัท XYZ (Thailand) จำกัด' },
-  { id: 3, name: 'ห้างหุ้นส่วน DEF' },
-  { id: 4, name: 'Nayong Hospital' },
-  { id: 5, name: 'ThaiBev Co., Ltd.' },
-  { id: 6, name: 'SCG Logistics Co., Ltd.' },
+const STATIC_CUSTOMERS = [
+  { id: 1, name: 'บริษัท ABC จำกัด',           credit_days: 30 },
+  { id: 2, name: 'บริษัท XYZ (Thailand) จำกัด', credit_days: 45 },
+  { id: 3, name: 'ห้างหุ้นส่วน DEF',            credit_days: 30 },
+  { id: 4, name: 'Nayong Hospital',              credit_days: 60 },
+  { id: 5, name: 'ThaiBev Co., Ltd.',            credit_days: 30 },
+  { id: 6, name: 'SCG Logistics Co., Ltd.',      credit_days: 90 },
 ];
 
 const truncate = (str, max = 30) => str && str.length > max ? str.slice(0, max) + '…' : str;
@@ -35,11 +37,70 @@ function Notify({ msg, type }) {
   );
 }
 
-function TarifManagement() {
+function TarifManagement({ currentUser }) {
   const { t } = useTranslation();
 
-  const [activeTab, setActiveTab]             = useState('inbound');
+  const [activeTab, setActiveTab]               = useState('inbound');
   const [selectedCustomer, setSelectedCustomer] = useState('');
+  const [CUSTOMER_LIST, setCustomerList]        = useState([]);
+
+  // โหลด CUSTOMER_LIST เฉพาะของ company ที่ login
+  useEffect(() => {
+    const compNo = currentUser?.companyNo;
+    const isSuperAdmin = currentUser?.role === 'superadmin';
+    customerApi.list(isSuperAdmin ? undefined : compNo).then(data => {
+      if (!Array.isArray(data)) return;
+      const filtered = isSuperAdmin
+        ? data.filter(c => c.company_no)  // superadmin: ทุก customer ที่มี company
+        : data.filter(c => c.company_no === compNo && c.code !== compNo); // ลูกค้าของ company นี้
+      setCustomerList(filtered.map(c => ({
+        id: c.id, name: c.name, credit_days: c.credit_days ?? 30,
+        tax_id: c.tax_id, phone: c.phone, address: c.address, logo: c.logo,
+      })));
+    }).catch(() => {});
+  }, [currentUser?.companyNo, currentUser?.role]);
+
+  // ── billing company = บริษัทที่ user login (Header ของ Invoice) ──────────
+  const [billingComp, setBillingComp] = useState(null);
+
+  // อ่าน company info จาก localStorage (ที่ SuperAdmin sync ไว้)
+  const getCompFromCache = (compNo) => {
+    if (!compNo) return null;
+    try {
+      const list = JSON.parse(localStorage.getItem('wms_sa_companies') || '[]');
+      const c = list.find(x => x.companyNo === compNo);
+      if (c) return { name: c.name, tax_id: c.taxId, address: c.address, phone: c.phone, email: c.email, logo: c.logo };
+    } catch {}
+    return null;
+  };
+
+  useEffect(() => {
+    const userCompNo = currentUser?.companyNo;
+
+    // 1) อ่าน localStorage ทันที
+    const cached = getCompFromCache(userCompNo);
+    if (cached?.name) { setBillingComp(cached); }
+
+    // 2) โหลดจาก API: ค้นหา customer record ที่มี code = companyNo (= บริษัทตัวเอง)
+    if (userCompNo) {
+      customerApi.list().then(data => {
+        if (!Array.isArray(data)) return;
+        // company record มี code ตรงกับ companyNo
+        const match = data.find(c => c.code === userCompNo);
+        if (match) {
+          setBillingComp({ name: match.name, tax_id: match.tax_id, address: match.address, phone: match.phone, email: match.email, logo: match.logo });
+          // อัพเดต localStorage
+          try {
+            const existing = JSON.parse(localStorage.getItem('wms_sa_companies') || '[]');
+            const idx = existing.findIndex(x => x.companyNo === userCompNo);
+            const updated = { companyNo: match.code, name: match.name, taxId: match.tax_id, address: match.address, phone: match.phone, email: match.email, logo: match.logo };
+            if (idx >= 0) existing[idx] = updated; else existing.push(updated);
+            localStorage.setItem('wms_sa_companies', JSON.stringify(existing));
+          } catch {}
+        }
+      }).catch(() => {});
+    }
+  }, [currentUser?.companyNo]);
 
   // ── tarif state ──────────────────────────────────────────────────────────
   const [tariffData, setTariffData] = useState({
@@ -93,10 +154,11 @@ function TarifManagement() {
     start: new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().slice(0, 10),
     end:   new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0).toISOString().slice(0, 10),
   });
-  const [billingResult, setBillingResult] = useState(null);
-  const [invoiceList, setInvoiceList]     = useState([]);
-  const [calcLoading, setCalcLoading]     = useState(false);
-  const [invoiceLoading, setInvoiceLoading] = useState(false);
+  const [billingResult, setBillingResult]     = useState(null);
+  const [invoiceList, setInvoiceList]         = useState([]);
+  const [calcLoading, setCalcLoading]         = useState(false);
+  const [invoiceLoading, setInvoiceLoading]   = useState(false);
+  const [showInvoicePreview, setShowInvoicePreview] = useState(false);
 
   // ── history tab ──────────────────────────────────────────────────────────
   const [tarifHistory, setTarifHistory] = useState([]);
@@ -308,8 +370,13 @@ function TarifManagement() {
     }
   };
 
-  const handleGenerateInvoice = async () => {
+  const handleGenerateInvoice = () => {
     if (!billingResult) return;
+    setShowInvoicePreview(true);
+  };
+
+  const handleConfirmInvoice = async () => {
+    setShowInvoicePreview(false);
     try {
       const res = await fetch(`${API}/invoice/create`, {
         method: 'POST',
@@ -322,13 +389,57 @@ function TarifManagement() {
       });
       const d = await res.json();
       showNotify(`สร้าง Invoice ${d.data?.invoice_number || ''} สำเร็จ`, 'success');
-      // reload invoice list
       const listRes = await fetch(`${API}/invoice/list/${selectedCustomer}`);
       const listData = await listRes.json();
       setInvoiceList(listData.data || []);
     } catch {
-      showNotify('สร้าง Invoice สำเร็จ (mock)', 'success');
+      showNotify('สร้าง Billing Note สำเร็จ (mock)', 'success');
     }
+  };
+
+  const handlePrintInvoice = () => {
+    const el = document.getElementById('billing-note-content');
+    if (!el) return;
+    const win = window.open('', '_blank');
+    win.document.write(`
+      <html><head><title>Billing Note</title>
+      <style>
+        @page { size: A4 portrait; margin: 15mm 18mm; }
+        * { box-sizing: border-box; }
+        body { font-family: 'Segoe UI', Arial, sans-serif; margin: 0; padding: 0; color: #1a1a2e; background: #fff; font-size: 13px; }
+        .inv-preview-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 18px; padding-bottom: 14px; border-bottom: 2.5px solid #005f8a; }
+        .inv-company-name { font-size: 17px; font-weight: 800; color: #005f8a; }
+        .inv-company-sub { font-size: 11px; color: #555; margin-top: 2px; }
+        .inv-preview-title-block { text-align: right; }
+        .inv-big-title { font-size: 26px; font-weight: 900; color: #005f8a; letter-spacing: 3px; }
+        .inv-meta-row { display: flex; gap: 10px; justify-content: flex-end; margin-top: 4px; font-size: 11px; }
+        .inv-lbl { color: #888; }
+        .inv-val { font-weight: 600; color: #1a1a2e; }
+        .inv-due { color: #c07000; font-weight: 700; }
+        .inv-credit { background: #e8f4e8; color: #006600; font-weight: 700; padding: 1px 6px; border-radius: 8px; font-size: 10px; }
+        .inv-bill-to { background: #f0f8ff; border-left: 4px solid #00A8CC; padding: 10px 14px; border-radius: 4px; margin-bottom: 16px; }
+        .inv-bill-name { font-size: 14px; font-weight: 700; color: #005f8a; margin-top: 2px; }
+        .inv-bill-detail { font-size: 11px; color: #555; margin-top: 2px; }
+        .inv-bill-credit { font-size: 10px; font-weight: 600; color: #c07000; background: #fff8e0; border: 1px solid #f0d080; border-radius: 4px; padding: 2px 7px; margin-top: 5px; display: inline-block; }
+        .inv-preview-table { width: 100%; border-collapse: collapse; font-size: 12px; margin-bottom: 14px; }
+        .inv-preview-table th { background: #e8f4f8; padding: 8px 11px; text-align: left; font-size: 11px; color: #005f8a; text-transform: uppercase; letter-spacing: 0.5px; }
+        .inv-preview-table td { padding: 8px 11px; border-bottom: 1px solid #e8eef2; color: #2a3545; }
+        .inv-preview-table tfoot td { border-bottom: none; }
+        .inv-subtotal-row td { background: #f8fbfd; font-weight: 600; border-top: 1px solid #cce0ec; }
+        .inv-vat-row td { background: #f8fbfd; color: #667; font-size: 11px; }
+        .inv-total-row td { background: #005f8a; color: #fff; font-weight: 800; font-size: 14px; border-top: 2px solid #004f7a; }
+        .inv-footer-note { text-align: center; font-size: 10px; color: #888; border-top: 1px dashed #cce0ec; padding-top: 10px; margin-top: 8px; }
+        .inv-preview-from { display: flex; align-items: flex-start; gap: 12px; }
+        .inv-sig-row { display: flex; justify-content: space-between; margin-top: 32px; gap: 24px; }
+        .inv-sig-box { flex: 1; text-align: center; }
+        .inv-sig-line { border-top: 1px solid #bbb; margin: 40px 16px 6px; }
+        .inv-sig-label { font-size: 11px; color: #666; }
+      </style></head>
+      <body onload="window.print()">
+        ${el.innerHTML}
+      </body></html>
+    `);
+    win.document.close();
   };
 
   // ── render helpers ────────────────────────────────────────────────────────
@@ -373,41 +484,8 @@ function TarifManagement() {
           <h2>💰 {t('tarif.title', 'Tarif Management')}</h2>
           <p>{t('tarif.subtitle', 'Configure pricing for all WMS services')}</p>
         </div>
-        <div className="tarif-header-selectors">
-          <div className="tarif-customer-selector">
-            <label className="tarif-cust-label">🏢 Customers</label>
-            <select className="tarif-cust-select" value={selectedCustomer}
-              onChange={e => setSelectedCustomer(e.target.value)}>
-              <option value="">{t('tarif.selectCustomer', '— เลือกลูกค้า —')}</option>
-              {CUSTOMER_LIST.map(c => <option key={c.id} value={c.id}>{truncate(c.name)}</option>)}
-            </select>
-            {selectedCustomer && (
-              <button className="tarif-cust-clear" onClick={() => setSelectedCustomer('')} title="ล้างการเลือก">✕</button>
-            )}
-          </div>
-          <div className="tarif-customer-selector">
-            <label className="tarif-cust-label">📋 ประเภทบริการ</label>
-            <select className="tarif-cust-select tarif-category-select" value={activeTab}
-              onChange={e => handleTabChange(e.target.value)}>
-              <option value="inbound">📥 INBOUND</option>
-              <option value="storage">📦 STORAGE</option>
-              <option value="outbound">📤 OUTBOUND</option>
-              <option value="vas">⭐ VAS</option>
-              <option value="special">🔧 SPECIAL</option>
-              <option value="billing">🧾 BILLING</option>
-              <option value="history">📜 HISTORY</option>
-            </select>
-          </div>
-        </div>
+        <div className="tarif-header-selectors" />
       </div>
-
-      {selectedCustomer && (
-        <div className="tarif-cust-badge">
-          <span className="tarif-cust-badge-icon">🏢</span>
-          <span className="tarif-cust-badge-name">{truncate(CUSTOMER_LIST.find(c => c.id === +selectedCustomer)?.name || '')}</span>
-          <span className="tarif-cust-badge-note">— กำลังแสดง/ตั้งค่าราคาสำหรับลูกค้านี้</span>
-        </div>
-      )}
 
       <Notify msg={notify.msg} type={notify.type} />
 
@@ -427,6 +505,38 @@ function TarifManagement() {
             {icon} {label}
           </button>
         ))}
+      </div>
+
+      {/* ── customer bar (shown on every tab) ── */}
+      <div className={`tarif-tab-customer-bar ${!selectedCustomer ? 'no-customer' : ''}`}>
+        <span className="tarif-tab-cust-icon">🏢</span>
+        <label className="tarif-tab-cust-label">Customer :</label>
+        <select
+          className="tarif-tab-cust-select"
+          value={selectedCustomer}
+          onChange={e => setSelectedCustomer(e.target.value)}
+        >
+          <option value="">— กรุณาเลือกลูกค้า —</option>
+          {CUSTOMER_LIST.map(c => (
+            <option key={c.id} value={c.id}>{c.name}</option>
+          ))}
+        </select>
+        {selectedCustomer && (
+          <>
+            <span className="tarif-tab-cust-name">
+              {CUSTOMER_LIST.find(c => c.id === +selectedCustomer)?.name || ''}
+            </span>
+            <button
+              type="button"
+              className="tarif-tab-cust-clear"
+              onClick={() => setSelectedCustomer('')}
+              title="ล้างการเลือก"
+            >✕</button>
+          </>
+        )}
+        {!selectedCustomer && (
+          <span className="tarif-tab-cust-warn">⚠️ กรุณาเลือกลูกค้าก่อนตั้งค่าราคา</span>
+        )}
       </div>
 
       {/* ════════════════════ INBOUND ════════════════════ */}
@@ -680,6 +790,27 @@ function TarifManagement() {
       {/* ════════════════════ BILLING ════════════════════ */}
       {activeTab === 'billing' && (
         <div className="tarif-content">
+
+          {/* ── billing flow header ── */}
+          <div style={{ display: 'flex', alignItems: 'stretch', gap: 0, marginBottom: 20, borderRadius: 10, overflow: 'hidden', border: '1px solid rgba(0,229,255,0.15)' }}>
+            <div style={{ flex: 1, padding: '14px 18px', background: 'rgba(0,188,212,0.07)' }}>
+              <div style={{ fontSize: 10, color: '#5a8fa8', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 4 }}>Billing From (Header)</div>
+              {billingComp?.logo && (
+                <img src={billingComp.logo} alt="logo" style={{ height: 28, maxWidth: 80, objectFit: 'contain', borderRadius: 4, background: '#fff', padding: '1px 4px', marginBottom: 4, display: 'block' }} />
+              )}
+              <div style={{ fontWeight: 700, color: '#00E5FF', fontSize: 14 }}>{billingComp?.name || currentUser?.companyNo || '—'}</div>
+              {billingComp?.tax_id && <div style={{ fontSize: 11, color: '#5a8fa8' }}>Tax: {billingComp.tax_id}</div>}
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', padding: '0 14px', background: 'rgba(0,0,0,0.2)', color: '#00E5FF', fontSize: 18 }}>→</div>
+            <div style={{ flex: 1, padding: '14px 18px', background: 'rgba(0,204,136,0.06)' }}>
+              <div style={{ fontSize: 10, color: '#5a8fa8', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 4 }}>Bill To (Customer)</div>
+              {selectedCustomer
+                ? <div style={{ fontWeight: 700, color: '#00CC88', fontSize: 14 }}>{CUSTOMER_LIST.find(c => c.id === +selectedCustomer)?.name || '—'}</div>
+                : <div style={{ color: '#3a6a82', fontSize: 13 }}>— กรุณาเลือกลูกค้า —</div>
+              }
+            </div>
+          </div>
+
           {/* ── billing calculator ── */}
           <div className="tarif-section">
             <h3>🧮 คำนวณค่าบริการ (Billing Calculator)</h3>
@@ -745,7 +876,7 @@ function TarifManagement() {
                 </div>
                 <div className="billing-actions">
                   <button className="add-btn" onClick={handleGenerateInvoice}>
-                    🧾 Generate Invoice
+                    🧾 Generate Billing Note
                   </button>
                 </div>
               </div>
@@ -755,7 +886,7 @@ function TarifManagement() {
           {/* ── invoice list ── */}
           <div className="tarif-section">
             <div className="billing-inv-header">
-              <h3 style={{ margin: 0 }}>📋 Invoice List</h3>
+              <h3 style={{ margin: 0 }}>📋 Billing Note List</h3>
               {!selectedCustomer && (
                 <select className="tarif-cust-select" value={selectedCustomer}
                   onChange={e => setSelectedCustomer(e.target.value)}
@@ -769,13 +900,13 @@ function TarifManagement() {
             </div>
             {invoiceLoading && <div className="billing-loading">⏳ กำลังโหลด...</div>}
             {!invoiceLoading && invoiceList.length === 0 && selectedCustomer && (
-              <div className="billing-empty">ยังไม่มี Invoice</div>
+              <div className="billing-empty">ยังไม่มี Billing Note</div>
             )}
             {invoiceList.length > 0 && (
               <table className="tarif-table">
                 <thead>
                   <tr>
-                    <th>Invoice No.</th>
+                    <th>Billing Note No.</th>
                     <th>วันที่ออก</th>
                     <th>ช่วงเวลา</th>
                     <th>Subtotal</th>
@@ -852,6 +983,147 @@ function TarifManagement() {
         </div>
       )}
 
+      {/* ════════════════════ INVOICE PREVIEW MODAL ════════════════════ */}
+      {showInvoicePreview && billingResult && (() => {
+        const cust = CUSTOMER_LIST.find(c => c.id === +selectedCustomer);
+        const creditDays = cust?.credit_days ?? 30;
+        const invoiceDate = new Date();
+        const dueDate = new Date(invoiceDate.getTime() + creditDays * 86400000);
+        const fmtDate = (d) => d.toLocaleDateString('th-TH', { day: '2-digit', month: '2-digit', year: 'numeric' });
+        const invNo = `BN-${invoiceDate.getFullYear()}${String(invoiceDate.getMonth()+1).padStart(2,'0')}-${String(Math.floor(Math.random()*9000)+1000)}`;
+        const rows = [
+          { label: '📥 Inbound Handling',  amount: billingResult.inbound_charges  || 0 },
+          { label: '📦 Storage',            amount: billingResult.storage_charges  || 0 },
+          { label: '📤 Outbound Handling',  amount: billingResult.outbound_charges || 0 },
+          { label: '⭐ Value Added Service', amount: billingResult.vas_charges     || 0 },
+          { label: '🔧 Special Service',    amount: billingResult.special_charges  || 0 },
+        ];
+        // ── company info: billingComp → localStorage → fallback ──
+        const _localComp = getCompFromCache(currentUser?.companyNo);
+        const comp = {
+          name:    (billingComp?.name    || _localComp?.name    || currentUser?.companyNo || ''),
+          taxId:   (billingComp?.tax_id  || _localComp?.tax_id  || ''),
+          address: (billingComp?.address || _localComp?.address || ''),
+          phone:   (billingComp?.phone   || _localComp?.phone   || ''),
+          email:   (billingComp?.email   || _localComp?.email   || ''),
+          logo:    (billingComp?.logo    || _localComp?.logo    || ''),
+        };
+
+        return (
+          <div className="modal-overlay" onClick={e => e.target === e.currentTarget && setShowInvoicePreview(false)}>
+            <div className="modal-box bn-preview-modal" onClick={e => e.stopPropagation()}>
+              <div className="modal-header">
+                <h2>🧾 Billing Note Preview</h2>
+                <button className="modal-close" onClick={() => setShowInvoicePreview(false)}>✕</button>
+              </div>
+
+              <div className="modal-body bn-preview-body" id="billing-note-content">
+                {/* ── A4 paper sheet ── */}
+                <div className="bn-a4-sheet">
+
+                  {/* Header */}
+                  <div className="inv-preview-header">
+                    <div className="inv-preview-from" style={{ display: 'flex', alignItems: 'flex-start', gap: 14 }}>
+                      {comp.logo && (
+                        <img src={comp.logo} alt="logo"
+                          style={{ height: 64, maxWidth: 130, objectFit: 'contain', borderRadius: 6, background: '#f5f9fc', padding: '4px 8px' }} />
+                      )}
+                      <div>
+                        <div className="inv-company-name">{comp.name || currentUser?.companyNo || 'WMS 3PL'}</div>
+                        <div className="inv-company-sub">เลขผู้เสียภาษี: {comp.taxId || '—'}</div>
+                        {comp.address && <div className="inv-company-sub">{comp.address}</div>}
+                        <div className="inv-company-sub">โทร: {comp.phone || '—'} | {comp.email || '—'}</div>
+                      </div>
+                    </div>
+                    <div className="inv-preview-title-block">
+                      <div className="inv-big-title">BILLING NOTE</div>
+                      <div style={{ fontSize: 11, color: '#888', textAlign: 'right', marginBottom: 4 }}>ใบแจ้งหนี้ค่าบริการคลังสินค้า</div>
+                      <div className="inv-meta-row"><span className="inv-lbl">เลขที่</span><span className="inv-val mono">{invNo}</span></div>
+                      <div className="inv-meta-row"><span className="inv-lbl">วันที่ออก</span><span className="inv-val">{fmtDate(invoiceDate)}</span></div>
+                      <div className="inv-meta-row"><span className="inv-lbl">ครบกำหนด</span><span className="inv-val inv-due">{fmtDate(dueDate)}</span></div>
+                      <div className="inv-meta-row"><span className="inv-lbl">เครดิต</span><span className="inv-val inv-credit">{creditDays} วัน</span></div>
+                      <div className="inv-meta-row"><span className="inv-lbl">ช่วงเวลา</span><span className="inv-val">{billingPeriod.start} – {billingPeriod.end}</span></div>
+                    </div>
+                  </div>
+
+                  {/* Bill To */}
+                  <div className="inv-bill-to">
+                    <div className="inv-lbl" style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: 0.8 }}>เรียนเก็บเงินจาก / Bill To</div>
+                    <div className="inv-bill-name">{cust?.name || '—'}</div>
+                    {cust?.tax_id   && <div className="inv-bill-detail">เลขผู้เสียภาษี: {cust.tax_id}</div>}
+                    {cust?.phone    && <div className="inv-bill-detail">โทร: {cust.phone}</div>}
+                    {cust?.address  && <div className="inv-bill-detail">{cust.address}</div>}
+                    <div className="inv-bill-credit">เงื่อนไขการชำระ: เครดิต {creditDays} วัน (ครบกำหนด: {fmtDate(dueDate)})</div>
+                  </div>
+
+                  {/* Line Items */}
+                  <table className="inv-preview-table">
+                    <thead>
+                      <tr>
+                        <th style={{ width: 32 }}>#</th>
+                        <th>รายการค่าบริการ</th>
+                        <th style={{ textAlign: 'right', width: 160 }}>จำนวนเงิน (฿)</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {rows.map((r, idx) => (
+                        <tr key={r.label}>
+                          <td style={{ color: '#aaa', textAlign: 'center' }}>{idx + 1}</td>
+                          <td>{r.label}</td>
+                          <td style={{ textAlign: 'right' }}>{r.amount.toLocaleString('th-TH', { minimumFractionDigits: 2 })}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                    <tfoot>
+                      <tr className="inv-subtotal-row">
+                        <td colSpan={2}>Subtotal</td>
+                        <td style={{ textAlign: 'right' }}>{(billingResult.subtotal || 0).toLocaleString('th-TH', { minimumFractionDigits: 2 })}</td>
+                      </tr>
+                      <tr className="inv-vat-row">
+                        <td colSpan={2}>ภาษีมูลค่าเพิ่ม (VAT 7%)</td>
+                        <td style={{ textAlign: 'right' }}>{(billingResult.tax || 0).toLocaleString('th-TH', { minimumFractionDigits: 2 })}</td>
+                      </tr>
+                      <tr className="inv-total-row">
+                        <td colSpan={2}>ยอดรวมสุทธิ (TOTAL)</td>
+                        <td style={{ textAlign: 'right' }}>฿ {(billingResult.total || 0).toLocaleString('th-TH', { minimumFractionDigits: 2 })}</td>
+                      </tr>
+                    </tfoot>
+                  </table>
+
+                  {/* Signature row */}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 40, gap: 24 }}>
+                    <div style={{ flex: 1, textAlign: 'center' }}>
+                      <div style={{ borderTop: '1px solid #bbb', margin: '36px 24px 6px', paddingTop: 6, fontSize: 11, color: '#555' }}>
+                        ผู้รับเงิน / Received by
+                      </div>
+                      <div style={{ fontSize: 10, color: '#aaa' }}>วันที่ ________________</div>
+                    </div>
+                    <div style={{ flex: 1, textAlign: 'center' }}>
+                      <div style={{ borderTop: '1px solid #bbb', margin: '36px 24px 6px', paddingTop: 6, fontSize: 11, color: '#555' }}>
+                        ผู้มีอำนาจลงนาม / Authorized Signatory
+                      </div>
+                      <div style={{ fontSize: 11, color: '#005f8a', fontWeight: 700 }}>{comp.name || ''}</div>
+                    </div>
+                  </div>
+
+                  {/* Footer */}
+                  <div className="inv-footer-note">
+                    ขอบคุณที่ใช้บริการ <strong>{comp.name || currentUser?.companyNo || 'WMS 3PL'}</strong> — กรุณาชำระภายในวันที่ <strong>{fmtDate(dueDate)}</strong>
+                  </div>
+
+                </div>{/* end bn-a4-sheet */}
+              </div>
+
+              <div className="modal-footer">
+                <button className="cancel-btn" onClick={() => setShowInvoicePreview(false)}>ยกเลิก</button>
+                <button className="inv-print-btn" onClick={handlePrintInvoice}>🖨️ Print A4</button>
+                <button className="save-btn" onClick={handleConfirmInvoice}>✅ ยืนยัน Generate Billing Note</button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
       {/* ════════════════════ ADD MODAL ════════════════════ */}
       {showAddModal && (
         <div className="modal-overlay" onClick={e => e.target === e.currentTarget && setShowAddModal(false)}>
@@ -863,24 +1135,24 @@ function TarifManagement() {
             <div className="modal-body">
               <div className="form-row-2">
                 <div className="form-group">
-                  <label>Service Code *</label>
+                  <label>Service Code</label>
                   <input type="text" placeholder="LABELING" value={addForm.code}
                     onChange={e => setAddForm(f => ({ ...f, code: e.target.value.toUpperCase() }))} />
                 </div>
                 <div className="form-group">
-                  <label>Service Name *</label>
+                  <label>Service Name</label>
                   <input type="text" placeholder="ชื่อบริการ" value={addForm.name}
                     onChange={e => setAddForm(f => ({ ...f, name: e.target.value }))} />
                 </div>
               </div>
               <div className="form-row-2">
                 <div className="form-group">
-                  <label>Rate (บาท) *</label>
+                  <label>Rate (บาท)</label>
                   <input type="number" min="0" value={addForm.rate}
                     onChange={e => setAddForm(f => ({ ...f, rate: e.target.value }))} />
                 </div>
                 <div className="form-group">
-                  <label>Unit *</label>
+                  <label>Unit</label>
                   <select value={addForm.unit}
                     onChange={e => setAddForm(f => ({ ...f, unit: e.target.value }))}>
                     <option value="">— เลือกหน่วย —</option>

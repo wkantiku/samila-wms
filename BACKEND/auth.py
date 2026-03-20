@@ -4,7 +4,7 @@ JWT Authentication + User Model for Samila WMS
 import os
 from datetime import datetime, timedelta
 from typing import Optional
-from sqlalchemy import Column, Integer, String, Boolean, DateTime, JSON
+from sqlalchemy import Column, Integer, String, Boolean, DateTime, JSON, text
 from sqlalchemy.orm import Session
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
@@ -35,6 +35,7 @@ class User(Base):
     warehouses      = Column(JSON, default=list)
     menus           = Column(JSON, default=dict)
     status          = Column(String(20), default="active")
+    company_no      = Column(String(50), nullable=True)
     last_login      = Column(DateTime, nullable=True)
     created_at      = Column(DateTime, default=datetime.utcnow)
     updated_at      = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
@@ -42,6 +43,14 @@ class User(Base):
 
 # Create users table if not exists
 Base.metadata.create_all(bind=engine)
+
+# Migration: add company_no column to existing users table
+try:
+    with engine.connect() as _conn:
+        _conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS company_no VARCHAR(50)"))
+        _conn.commit()
+except Exception:
+    pass
 
 
 # ── Password helpers ────────────────────────────────────────────

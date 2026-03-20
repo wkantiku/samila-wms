@@ -62,6 +62,43 @@
 .tarif-cust-badge-name { font-weight: 700; color: #00E5FF; }
 .tarif-cust-badge-note { color: #5a8fa8; font-size: 11px; }
 
+/* ── Customer bar (per-tab) ── */
+.tarif-tab-customer-bar {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  background: rgba(0,30,55,0.7); border: 1px solid rgba(0,188,212,0.3);
+  border-radius: 10px; padding: 10px 16px; margin-bottom: 16px;
+}
+.tarif-tab-customer-bar.no-customer {
+  border-color: rgba(255,180,0,0.4);
+  background: rgba(255,180,0,0.06);
+}
+.tarif-tab-cust-icon { font-size: 16px; }
+.tarif-tab-cust-label {
+  font-size: 12px; font-weight: 700; color: #5a8fa8;
+  white-space: nowrap;
+}
+.tarif-tab-cust-select {
+  padding: 7px 12px; border-radius: 8px; font-size: 13px; font-weight: 600;
+  background: rgba(0,10,25,0.85); border: 1px solid rgba(0,188,212,0.4);
+  color: #e0f7ff; cursor: pointer; outline: none; min-width: 220px;
+}
+.tarif-tab-cust-select:focus { border-color: #00BCD4; }
+.tarif-tab-cust-name {
+  font-size: 14px; font-weight: 800; color: #00E5FF;
+  background: rgba(0,188,212,0.1); padding: 4px 12px;
+  border-radius: 20px; border: 1px solid rgba(0,188,212,0.25);
+}
+.tarif-tab-cust-clear {
+  background: rgba(255,80,80,0.15); border: 1px solid rgba(255,80,80,0.3);
+  color: #ff6b6b; border-radius: 6px; padding: 4px 10px;
+  cursor: pointer; font-size: 12px; font-weight: 700;
+}
+.tarif-tab-cust-clear:hover { background: rgba(255,80,80,0.25); }
+.tarif-tab-cust-warn {
+  font-size: 12px; color: #FFB300; font-weight: 600;
+  margin-left: 4px;
+}
+
 /* TABS */
 .tarif-tabs { display: flex; gap: 4px; margin-bottom: 20px; border-bottom: 1px solid rgba(0,188,212,0.15); flex-wrap: wrap; }
 
@@ -194,6 +231,107 @@
 }
 .modal-box.modal-md { max-width: 540px; }
 .modal-box.modal-sm { max-width: 380px; }
+
+/* Billing Note Preview Modal */
+.bn-preview-modal {
+  max-width: 860px;
+  width: 95vw;
+  max-height: 94vh;
+  display: flex;
+  flex-direction: column;
+}
+.bn-preview-body {
+  overflow-y: auto;
+  flex: 1;
+  padding: 24px;
+  background: #d0d8e0;
+}
+
+/* A4 paper sheet (210mm × 297mm → 794px × 1123px @ 96dpi) */
+.bn-a4-sheet {
+  width: 794px;
+  min-height: 1123px;
+  margin: 0 auto;
+  background: #ffffff;
+  color: #1a2535;
+  padding: 50px 56px 48px;
+  box-shadow: 0 4px 24px rgba(0,0,0,0.28);
+  border-radius: 2px;
+  box-sizing: border-box;
+  font-family: 'Segoe UI', Arial, sans-serif;
+  font-size: 13px;
+  position: relative;
+}
+
+@media print {
+  .bn-preview-body { background: #fff; padding: 0; }
+  .bn-a4-sheet {
+    width: 100%; min-height: unset;
+    box-shadow: none; padding: 0; margin: 0;
+  }
+}
+.inv-preview-header {
+  display: flex; justify-content: space-between; align-items: flex-start;
+  margin-bottom: 22px;
+  padding-bottom: 16px;
+  border-bottom: 2.5px solid #005f8a;
+}
+.inv-company-name { font-size: 18px; font-weight: 800; color: #005f8a; }
+.inv-company-sub  { font-size: 11px; color: #555; margin-top: 2px; }
+.inv-preview-title-block { text-align: right; }
+.inv-big-title {
+  font-size: 28px; font-weight: 900; color: #005f8a;
+  letter-spacing: 4px; text-transform: uppercase;
+}
+.inv-meta-row { display: flex; gap: 10px; justify-content: flex-end; margin-top: 4px; font-size: 12px; }
+.inv-lbl { color: #888; }
+.inv-val { font-weight: 600; color: #1a2535; }
+
+.inv-bill-to {
+  background: #f0f8ff; border-left: 4px solid #0096bb;
+  padding: 10px 14px; border-radius: 4px; margin-bottom: 18px;
+}
+.inv-bill-name   { font-size: 15px; font-weight: 700; color: #005f8a; margin-top: 2px; }
+.inv-bill-detail { font-size: 11px; color: #555; margin-top: 2px; }
+.inv-bill-credit {
+  font-size: 11px; font-weight: 600; color: #c07000;
+  background: #fff8e0; border: 1px solid #f0d080;
+  border-radius: 4px; padding: 3px 8px; margin-top: 6px; display: inline-block;
+}
+.inv-due    { color: #c07000 !important; font-weight: 700 !important; }
+.inv-credit {
+  background: #e8f4e8; color: #006600; font-weight: 700 !important;
+  padding: 1px 7px; border-radius: 10px; font-size: 11px;
+}
+
+.inv-preview-table {
+  width: 100%; border-collapse: collapse; font-size: 13px; margin-bottom: 16px;
+}
+.inv-preview-table th {
+  background: #daeef6; padding: 9px 12px;
+  text-align: left; font-size: 11px; color: #004f7a;
+  text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 2px solid #a0c8dc;
+}
+.inv-preview-table td { padding: 9px 12px; border-bottom: 1px solid #e4edf2; color: #1a2535; }
+.inv-preview-table tfoot td { border-bottom: none; }
+.inv-subtotal-row td { background: #f5fafe; font-weight: 600; border-top: 1px solid #b8d4e4; }
+.inv-vat-row     td { background: #f5fafe; color: #555; font-size: 12px; }
+.inv-total-row   td {
+  background: #005f8a; color: #fff; font-weight: 800; font-size: 14px;
+  border-top: 2px solid #004268;
+}
+
+.inv-footer-note {
+  text-align: center; font-size: 11px; color: #888;
+  border-top: 1px dashed #c0d8e4; padding-top: 12px; margin-top: 16px;
+}
+
+.inv-print-btn {
+  padding: 9px 18px;
+  background: rgba(0,188,212,0.12); border: 1px solid rgba(0,188,212,0.4);
+  color: #00E5FF; border-radius: 6px; font-size: 13px; font-weight: 700; cursor: pointer;
+}
+.inv-print-btn:hover { background: rgba(0,188,212,0.25); }
 .modal-header {
   display: flex; align-items: center; justify-content: space-between;
   padding: 18px 22px 14px; border-bottom: 1px solid rgba(0,188,212,0.12);

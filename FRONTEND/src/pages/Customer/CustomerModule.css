@@ -61,7 +61,70 @@
   display: flex; align-items: center; justify-content: center;
   font-weight: 700; font-size: 13px; flex-shrink: 0;
 }
+.cust-logo-img {
+  width: 32px; height: 32px; border-radius: 6px;
+  object-fit: contain; background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(0,188,212,0.2); flex-shrink: 0;
+}
 .cust-name-txt { font-weight: 600; color: #cce4ef; }
+
+/* Credit Days */
+.credit-input-wrap {
+  display: flex; align-items: center; gap: 0;
+}
+.credit-input-wrap input {
+  border-radius: 6px 0 0 6px !important; flex: 1;
+}
+.credit-unit {
+  padding: 9px 12px; background: rgba(0,188,212,0.1);
+  border: 1px solid rgba(0,188,212,0.2); border-left: none;
+  border-radius: 0 6px 6px 0; font-size: 12px; font-weight: 700;
+  color: #00E5FF; white-space: nowrap;
+}
+.credit-hint { font-size: 10px; color: #4a7a90; margin-top: 4px; }
+.credit-preset-label { font-size: 10px; color: #4a7a90; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.4px; }
+.credit-presets { display: flex; flex-wrap: wrap; gap: 5px; }
+.credit-preset-btn {
+  padding: 4px 10px; border-radius: 5px; font-size: 11px; font-weight: 700;
+  cursor: pointer; border: 1px solid rgba(0,188,212,0.2);
+  background: rgba(255,255,255,0.04); color: #7aafc8; transition: all 0.15s;
+}
+.credit-preset-btn:hover { background: rgba(0,188,212,0.12); color: #00E5FF; }
+.credit-preset-btn.active {
+  background: rgba(0,188,212,0.2); border-color: #00BCD4; color: #00E5FF;
+}
+
+/* Logo Upload */
+.logo-upload-row {
+  display: flex; align-items: center; gap: 14px;
+  padding: 12px; background: rgba(0,188,212,0.04);
+  border: 1px dashed rgba(0,188,212,0.25); border-radius: 8px;
+}
+.logo-placeholder {
+  width: 56px; height: 56px; border-radius: 8px; flex-shrink: 0;
+  background: rgba(0,188,212,0.08); border: 1px solid rgba(0,188,212,0.15);
+  display: flex; align-items: center; justify-content: center; font-size: 24px;
+}
+.logo-preview {
+  width: 56px; height: 56px; border-radius: 8px; flex-shrink: 0;
+  object-fit: contain; background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(0,188,212,0.3);
+}
+.logo-upload-actions { display: flex; flex-direction: column; gap: 6px; }
+.upload-logo-btn {
+  padding: 6px 14px; background: rgba(0,168,204,0.15);
+  border: 1px solid rgba(0,188,212,0.35); border-radius: 6px;
+  color: #00E5FF; font-size: 12px; font-weight: 600; cursor: pointer;
+  transition: all 0.2s; width: fit-content;
+}
+.upload-logo-btn:hover { background: rgba(0,168,204,0.3); }
+.remove-logo-btn {
+  padding: 4px 10px; background: rgba(255,100,100,0.1);
+  border: 1px solid rgba(255,100,100,0.25); border-radius: 6px;
+  color: #FF8888; font-size: 11px; cursor: pointer; width: fit-content;
+}
+.remove-logo-btn:hover { background: rgba(255,100,100,0.22); }
+.logo-hint { font-size: 10px; color: #4a7a90; }
 .cust-tel  { font-size: 12px; color: '#7ecadf'; }
 .cust-addr-cell { font-size: 12px; color: #7a9fb5; max-width: 200px; }
 .mono { font-family: 'Courier New', monospace; }

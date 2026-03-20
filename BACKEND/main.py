@@ -24,7 +24,7 @@ from wms_database_schema import Base, engine
 # Import routes/routers
 from tarif_billing_api import router as tarif_router
 from routers import auth, users, warehouses, customers, products
-from routers import inventory, receiving, orders, picking, putaway, shipping, cs, reports
+from routers import inventory, receiving, orders, picking, putaway, packing, shipping, cs, reports
 
 # Configure logging
 logging.basicConfig(
@@ -46,7 +46,7 @@ app = FastAPI(
 # ── CORS — restrict to known origins ────────────────────────────────────────
 _raw_origins = os.getenv(
     "ALLOWED_ORIGINS",
-    "http://localhost:3000,http://localhost:80,https://samila-wms.onrender.com"
+    "http://localhost:3000,http://localhost:80,http://localhost,http://127.0.0.1:3000,http://127.0.0.1,https://samila-wms.onrender.com"
 )
 ALLOWED_ORIGINS = [o.strip() for o in _raw_origins.split(",") if o.strip()]
 
@@ -59,7 +59,7 @@ app.add_middleware(
 )
 
 # ── Trusted hosts ────────────────────────────────────────────────────────────
-_raw_hosts = os.getenv("ALLOWED_HOSTS", "localhost,127.0.0.1,samila-wms.onrender.com")
+_raw_hosts = os.getenv("ALLOWED_HOSTS", "localhost,127.0.0.1,samila-wms-backend.onrender.com,*.onrender.com")
 ALLOWED_HOSTS = [h.strip() for h in _raw_hosts.split(",") if h.strip()]
 
 app.add_middleware(
@@ -70,7 +70,15 @@ app.add_middleware(
 # ── Security response headers middleware ─────────────────────────────────────
 @app.middleware("http")
 async def add_security_headers(request: Request, call_next):
-    response = await call_next(request)
+    try:
+        response = await call_next(request)
+    except Exception as exc:
+        # Catch unhandled exceptions so they don't bypass CORS middleware
+        logger.error(f"Unhandled exception in middleware: {exc}")
+        response = JSONResponse(
+            status_code=500,
+            content={"detail": "เกิดข้อผิดพลาดภายในระบบ"}
+        )
     response.headers["X-Content-Type-Options"] = "nosniff"
     response.headers["X-Frame-Options"]        = "DENY"
     response.headers["X-XSS-Protection"]       = "1; mode=block"
@@ -79,6 +87,49 @@ async def add_security_headers(request: Request, call_next):
 
 # Create database tables
 Base.metadata.create_all(bind=engine)
+
+# ── Migrate: add new columns to warehouses if not yet present ──────────────
+def _migrate_warehouses():
+    try:
+        from sqlalchemy import text
+        from database import SessionLocal
+        db = SessionLocal()
+        cols_to_add = [
+            ("used_sqm",    "FLOAT DEFAULT 0"),
+            ("zones",       "INTEGER DEFAULT 0"),
+            ("staff",       "INTEGER DEFAULT 0"),
+            ("wh_type",     "VARCHAR(100) DEFAULT 'General'"),
+            ("icon",        "VARCHAR(10) DEFAULT '🏭'"),
+            ("company_no",  "VARCHAR(50) DEFAULT 'COMP-001'"),
+        ]
+        for col, col_def in cols_to_add:
+            try:
+                db.execute(text(f"ALTER TABLE warehouses ADD COLUMN {col} {col_def}"))
+                db.commit()
+            except Exception:
+                db.rollback()   # column already exists — ignore
+        db.close()
+    except Exception as e:
+        logging.warning(f"Warehouse migration skipped: {e}")
+
+_migrate_warehouses()
+
+# ── Migrate: add company_no to customers ──────────────────────────────────
+def _migrate_customers():
+    try:
+        from sqlalchemy import text
+        from database import SessionLocal
+        db = SessionLocal()
+        try:
+            db.execute(text("ALTER TABLE customers ADD COLUMN company_no VARCHAR(50)"))
+            db.commit()
+        except Exception:
+            db.rollback()
+        db.close()
+    except Exception as e:
+        logging.warning(f"Customer migration skipped: {e}")
+
+_migrate_customers()
 
 # ============================================================================
 # Health Check Endpoint
@@ -142,6 +193,7 @@ app.include_router(receiving.router)
 app.include_router(orders.router)
 app.include_router(picking.router)
 app.include_router(putaway.router)
+app.include_router(packing.router)
 app.include_router(shipping.router)
 app.include_router(cs.router)
 app.include_router(reports.router)
@@ -168,7 +220,7 @@ async def global_exception_handler(request, exc):
 
 @app.on_event("startup")
 async def startup_event():
-    """Startup event handler — auto-seed initial data"""
+    """Startup event handler — auto-seed initial data + ensure superadmin exists"""
     logger.info("🚀 SAMILA WMS 3PL API is starting...")
     try:
         from seed import seed
@@ -176,6 +228,38 @@ async def startup_event():
         logger.info("✅ Database seeded")
     except Exception as e:
         logger.warning(f"Seed skipped: {e}")
+    # Ensure superadmin always exists with correct password
+    try:
+        from database import SessionLocal
+        from auth import User, hash_password
+        import os
+        db = SessionLocal()
+        sa = db.query(User).filter(User.username == "superadmin").first()
+        sa_pass = os.getenv("REACT_APP_SA_PASS", "Super@2026")
+        if not sa:
+            from wms_database_schema import Base
+            sa = User(
+                username="superadmin",
+                name="Samila Super Admin",
+                email="superadmin@samila.th",
+                hashed_password=hash_password(sa_pass),
+                role="superadmin",
+                warehouses=["All"],
+                menus={k: True for k in ["dashboard","receiving","inventory","product",
+                       "picking","putaway","packing","shipping","tarif","customer",
+                       "reports","kpi","mobile","users","warehouse-setting","user-limit","settings"]},
+                status="active",
+            )
+            db.add(sa)
+            db.commit()
+            logger.info("✅ Superadmin created")
+        elif sa.status != "active":
+            sa.status = "active"
+            db.commit()
+            logger.info("✅ Superadmin re-activated")
+        db.close()
+    except Exception as e:
+        logger.warning(f"Superadmin ensure skipped: {e}")
     logger.info("✅ All services initialized")
 
 @app.on_event("shutdown")

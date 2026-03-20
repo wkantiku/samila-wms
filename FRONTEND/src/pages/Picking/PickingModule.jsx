@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
+import { customerApi } from '../../services/api';
 import { UNIT_GROUPS } from '../../constants/units';
 import { ZONES, ZONE_OPTIONS, locationToZone } from '../../constants/zones';
 import * as XLSX from 'xlsx';
@@ -244,9 +245,16 @@ function PickingSlipPrint({ order, onClose }) {
   );
 }
 
-function PickingModule({ inventory, setInventory, pickingOrders: orders, setPickingOrders: setOrders }) {
+function PickingModule({ inventory, setInventory, pickingOrders: orders, setPickingOrders: setOrders, currentUser }) {
   const { t, i18n } = useTranslation();
   const [activeTab, setActiveTab]   = useState('list');
+
+  const [custList, setCustList] = useState([]);
+  useEffect(() => {
+    customerApi.list(currentUser?.companyNo).then(data => {
+      if (Array.isArray(data)) setCustList(data.map(c => c.name).filter(Boolean));
+    }).catch(() => {});
+  }, [currentUser?.companyNo]);
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [showSlip, setShowSlip]     = useState(false);
   const [slipOrder, setSlipOrder]   = useState(null);
@@ -257,6 +265,7 @@ function PickingModule({ inventory, setInventory, pickingOrders: orders, setPick
 
   const [zoneFilter, setZoneFilter] = useState('');
   const [unitFilter, setUnitFilter] = useState('');
+  const [pickSearch, setPickSearch] = useState('');
 
   const toggleLanguage = () => {
     const newLang = i18n.language === 'en' ? 'th' : 'en';
@@ -371,7 +380,7 @@ function PickingModule({ inventory, setInventory, pickingOrders: orders, setPick
               <select value={zoneFilter} onChange={e => setZoneFilter(e.target.value)} style={unitSelectStyle}>
                 {ZONE_OPTIONS.map(z => <option key={z.id} value={z.id}>{z.label}</option>)}
               </select>
-              <input type="search" placeholder="Search Pick No. / Customer" style={{ ...iStyle, maxWidth: 220 }} />
+              <input type="search" placeholder="Search Pick No. / Customer" value={pickSearch} onChange={e => setPickSearch(e.target.value)} style={{ ...iStyle, maxWidth: 220 }} />
             </div>
 
             <table className="data-table">
@@ -389,7 +398,9 @@ function PickingModule({ inventory, setInventory, pickingOrders: orders, setPick
                 </tr>
               </thead>
               <tbody>
-                {orders.map(order => {
+                {orders
+                  .filter(o => !pickSearch || o.pickNo.toLowerCase().includes(pickSearch.toLowerCase()) || (o.customer||'').toLowerCase().includes(pickSearch.toLowerCase()))
+                  .map(order => {
                   const totalToPick = order.items.reduce((s, i) => s + Number(i.toPick), 0);
                   const totalPicked = order.items.reduce((s, i) => s + Number(i.picked), 0);
                   return (
@@ -442,7 +453,10 @@ function PickingModule({ inventory, setInventory, pickingOrders: orders, setPick
               </div>
               <div className="rcv-form-group" style={{ marginBottom: 0 }}>
                 <label>Customer</label>
-                <input value={newOrder.customer} onChange={e => setNewOrder(p => ({ ...p, customer: e.target.value }))} placeholder="Customer A" style={iStyle} />
+                <select value={newOrder.customer} onChange={e => setNewOrder(p => ({ ...p, customer: e.target.value }))} style={iStyle}>
+                  <option value="">-- เลือก Customer --</option>
+                  {custList.map(c => <option key={c} value={c}>{c}</option>)}
+                </select>
               </div>
               <div className="rcv-form-group" style={{ marginBottom: 0 }}>
                 <label>Warehouse</label>

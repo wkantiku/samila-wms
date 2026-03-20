@@ -1,14 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { warehouseApi } from '../../services/api';
 import './WarehouseSelectPage.css';
-
-const FALLBACK_WH = [
-  { id: 1, companyNo: 'COMP-001', code: 'WH-BKK', name: 'Warehouse Bangkok',      location: 'กรุงเทพฯ (ลาดกระบัง)', address: '123 Logistics Park, ลาดกระบัง กรุงเทพฯ 10520', capacity: 5000, used: 3200, zones: 8,  staff: 24, active: true,  type: 'General + Cold Chain', icon: '🏙️' },
-  { id: 2, companyNo: 'COMP-001', code: 'WH-NTB', name: 'Warehouse Nonthaburi',   location: 'นนทบุรี (บางใหญ่)',     address: '88 Industrial Zone, บางใหญ่ นนทบุรี 11140',   capacity: 3000, used: 1800, zones: 5,  staff: 12, active: true,  type: 'General',              icon: '🏭' },
-  { id: 3, companyNo: 'COMP-001', code: 'WH-PTN', name: 'Warehouse Pathum Thani', location: 'ปทุมธานี (คลองหลวง)',   address: '55 Free Trade Zone, คลองหลวง ปทุมธานี 12120', capacity: 8000, used: 2100, zones: 12, staff: 18, active: true,  type: 'General + Hazmat',     icon: '🌿' },
-  { id: 4, companyNo: 'COMP-001', code: 'WH-TRG', name: 'Warehouse Trang',        location: 'ตรัง',                  address: '99 Hospital Rd, เมือง ตรัง 92000',             capacity: 2000, used: 1400, zones: 4,  staff: 8,  active: true,  type: 'Medical Supply',       icon: '🏥' },
-  { id: 5, companyNo: 'COMP-001', code: 'WH-CNX', name: 'Warehouse Chiang Mai',   location: 'เชียงใหม่ (สันกำแพง)', address: '200 Northern Hub, สันกำแพง เชียงใหม่ 50130',   capacity: 4000, used: 500,  zones: 6,  staff: 10, active: true,  type: 'General',              icon: '⛰️' },
-  { id: 6, companyNo: 'COMP-001', code: 'WH-HYD', name: 'Warehouse Hat Yai',      location: 'สงขลา (หาดใหญ่)',       address: '15 Southern Logistics, หาดใหญ่ สงขลา 90110',  capacity: 3500, used: 0,    zones: 0,  staff: 0,  active: false, type: 'General',              icon: '🌊' },
-];
 
 const getCompanyMap = () => {
   try {
@@ -18,36 +10,34 @@ const getCompanyMap = () => {
   } catch { return {}; }
 };
 
-const getVisibleWarehouses = (user) => {
-  try {
-    const saved = localStorage.getItem('wms_sa_whs');
-    const allWhs = saved ? JSON.parse(saved) : FALLBACK_WH;
-
-    // superadmin เห็นทุก warehouse
-    if (user?.role === 'superadmin') return allWhs;
-
-    // user มี company: แสดงเฉพาะ warehouse ใน company ของตัวเอง
-    if (user?.companyNo) {
-      const assigned = user.warehouses || [];
-      return allWhs.filter(w =>
-        w.companyNo === user.companyNo &&
-        assigned.includes(w.name)
-      );
-    }
-
-    // legacy: filter ตาม assigned names
-    const assigned = user?.warehouses || [];
-    if (assigned.includes('All')) return allWhs.filter(w => w.active !== false);
-    return allWhs.filter(w => assigned.includes(w.name));
-  } catch {
-    return FALLBACK_WH;
+const filterForUser = (allWhs, user) => {
+  if (!user) return [];
+  // superadmin เห็นทุก warehouse
+  if (user.role === 'superadmin') return allWhs;
+  // admin เห็นทุก warehouse ของบริษัทตัวเอง (companyNo match)
+  if (user.role === 'admin' && user.companyNo) {
+    return allWhs.filter(w => w.companyNo === user.companyNo && w.active !== false);
   }
+  // operator / user ทั่วไป: กรองตาม warehouse ที่ถูก assign
+  const assigned = user.warehouses || [];
+  if (assigned.includes('All')) return allWhs.filter(w => w.active !== false);
+  return allWhs.filter(w => assigned.includes(w.name) || assigned.includes(w.code));
 };
 
 export default function WarehouseSelectPage({ user, onSelect, onLogout }) {
-  const [hovered, setHovered] = useState(null);
+  const [hovered, setHovered]   = useState(null);
+  const [allWhs,  setAllWhs]    = useState([]);
+  const [loading, setLoading]   = useState(true);
   const companyMap = getCompanyMap();
-  const warehouses = getVisibleWarehouses(user).slice().sort((a, b) => {
+
+  useEffect(() => {
+    warehouseApi.list()
+      .then(data => { setAllWhs(data || []); })
+      .catch(() => { setAllWhs([]); })
+      .finally(() => setLoading(false));
+  }, []);
+
+  const warehouses = filterForUser(allWhs, user).slice().sort((a, b) => {
     const ca = companyMap[a.companyNo] || a.companyNo || '';
     const cb = companyMap[b.companyNo] || b.companyNo || '';
     const cmp = ca.localeCompare(cb, 'th');
@@ -159,7 +149,12 @@ export default function WarehouseSelectPage({ user, onSelect, onLogout }) {
           );
         })}
 
-        {warehouses.length === 0 && (
+        {loading && (
+          <div style={{ gridColumn: '1/-1', textAlign: 'center', padding: '60px 0', color: '#3a6a82', fontSize: 15 }}>
+            กำลังโหลดคลังสินค้า...
+          </div>
+        )}
+        {!loading && warehouses.length === 0 && (
           <div style={{ gridColumn: '1/-1', textAlign: 'center', padding: '60px 0', color: '#3a6a82', fontSize: 15 }}>
             ไม่มีคลังสินค้าที่ถูก assign — กรุณาติดต่อ Super Admin
           </div>

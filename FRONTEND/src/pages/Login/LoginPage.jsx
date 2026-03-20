@@ -8,8 +8,6 @@ export default function LoginPage({ onLogin, users = [] }) {
   const [loading, setLoading]   = useState(false);
   const [showPass, setShowPass] = useState(false);
 
-  const activeUsers = users.filter(u => u.status === 'active');
-
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!form.username || !form.password) { setError('กรุณากรอก Username และ Password'); return; }
@@ -48,16 +46,12 @@ export default function LoginPage({ onLogin, users = [] }) {
     }, 400);
   };
 
-  const fillDemo = (u) => setForm({ username: u.username, password: u.password });
-
   return (
     <div className="login-page">
       <div className="login-bg-grid" />
 
-      {/* wider card — 2 columns */}
-      <div className="login-card login-card-wide">
+      <div className="login-card">
 
-        {/* ── LEFT: form ── */}
         <div className="login-form-col">
           <div className="login-logo-area">
             <img src="/logo.png" alt="Samila WMS 3PL" className="login-logo-img" />
@@ -108,33 +102,6 @@ export default function LoginPage({ onLogin, users = [] }) {
           <div className="login-footer">
             Samila Innovation Co., Ltd. &nbsp;·&nbsp; v1.0.0
           </div>
-        </div>
-
-        {/* ── RIGHT: demo accounts table ── */}
-        <div className="login-accounts-col">
-          <div className="login-accounts-title">👥 บัญชีผู้ใช้งาน (คลิกเพื่อกรอกอัตโนมัติ)</div>
-          <table className="login-accounts-table">
-            <thead>
-              <tr>
-                <th>ชื่อ</th>
-                <th>Username</th>
-                <th>Password</th>
-              </tr>
-            </thead>
-            <tbody>
-              {activeUsers.map(u => (
-                <tr key={u.username} className="login-accounts-row" onClick={() => fillDemo(u)}
-                  title="คลิกเพื่อกรอกอัตโนมัติ">
-                  <td>{u.name}</td>
-                  <td><span className="acc-username">{u.username}</span></td>
-                  <td><span className="acc-password">{u.password}</span></td>
-                </tr>
-              ))}
-              {activeUsers.length === 0 && (
-                <tr><td colSpan={3} style={{ textAlign: 'center', color: '#3a6a82', padding: 12 }}>ไม่มีบัญชีผู้ใช้</td></tr>
-              )}
-            </tbody>
-          </table>
         </div>
 
       </div>

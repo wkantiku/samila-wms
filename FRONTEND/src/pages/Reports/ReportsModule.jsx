@@ -4,14 +4,15 @@ import { ZONES, ZONE_OPTIONS } from '../../constants/zones';
 import { BarChart, Bar, LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
 import { MAIN_UNIT_GROUPS as UNIT_GROUPS } from '../../constants/units';
 import {
-  revenueData, throughputData, customerRevenue, customers, reportCategories,
+  revenueData, throughputData, customerRevenue, customers as staticCustomers, reportCategories,
   recentReports, typeColor, demoExpiryItems, allNonMovementItems, NON_MOVE_THRESHOLD_MONTHS,
 } from './reportData';
+import { customerService } from '../../services/customerService';
 import PdfPreviewModal from './PdfPreviewModal';
 import './ReportsModule.css';
 
 /* ── Customer Search Combobox ── */
-function CustomerCombobox({ value, onChange }) {
+function CustomerCombobox({ value, onChange, customers }) {
   const [inputVal, setInputVal] = useState('');
   const [open, setOpen]         = useState(false);
   const [focused, setFocused]   = useState(false);
@@ -60,7 +61,9 @@ function CustomerCombobox({ value, onChange }) {
           ) : (
             filtered.map(c => (
               <div key={c.key} className={`cbox-option ${value === c.key ? 'active' : ''}`} onMouseDown={() => handleSelect(c)}>
-                <span className="cbox-opt-avatar">{c.name[0]}</span>
+                {c.logo
+                  ? <img src={c.logo} alt="logo" className="cbox-opt-logo" />
+                  : <span className="cbox-opt-avatar">{c.name[0]}</span>}
                 <div className="cbox-opt-body">
                   <div className="cbox-opt-name">{c.name}</div>
                   <div className="cbox-opt-meta">{c.code} &nbsp;·&nbsp; {c.contact} &nbsp;·&nbsp; {c.phone}</div>
@@ -79,6 +82,7 @@ function CustomerCombobox({ value, onChange }) {
 function ReportsModule({
   inventory = [], receivingOrders = [], putawayRecords = [],
   pickingOrders = [], salesOrders = [], csCases = [],
+  currentUser,
 }) {
   const { t } = useTranslation();
 
@@ -122,6 +126,16 @@ function ReportsModule({
       key: name.toLowerCase().replace(/\s+/g, '_') + i, name, code: '', contact: '', phone: '',
     }));
   }, [inventory, csCases]);
+
+  const [apiCustomers, setApiCustomers]   = useState([]);
+  useEffect(() => {
+    customerService.getAll().then(data => {
+      if (Array.isArray(data) && data.length > 0) setApiCustomers(data);
+    }).catch(() => {});
+  }, []);
+  const customers = apiCustomers.length > 0
+    ? apiCustomers.map(c => ({ key: String(c.id), name: c.name, code: c.code || '', contact: c.contact_person || '', phone: c.phone || '', logo: c.logo || '' }))
+    : staticCustomers;
 
   const [customer, setCustomer]           = useState('');
   const [selectedType, setSelectedType]   = useState(null);
@@ -265,12 +279,14 @@ function ReportsModule({
                 <div className="gen-step-label">
                   <span className="gen-step-num">1</span> {t('reports.selectCustomer')} <span className="gen-step-required">*</span>
                 </div>
-                <CustomerCombobox value={customer} onChange={(key) => { setCustomer(key); if (!key) setSelectedType(null); }} />
+                <CustomerCombobox value={customer} onChange={(key) => { setCustomer(key); if (!key) setSelectedType(null); }} customers={customers} />
                 {customer && (() => {
                   const c = customers.find(x => x.key === customer);
                   return (
                     <div className="cbox-selected-info">
-                      <span className="csi-avatar">{c.name[0]}</span>
+                      {c.logo
+                        ? <img src={c.logo} alt="logo" className="csi-logo" />
+                        : <span className="csi-avatar">{c.name[0]}</span>}
                       <span className="csi-name">{c.name}</span>
                       <span className="csi-sep">·</span>
                       <span className="csi-code">{c.code}</span>
@@ -603,6 +619,7 @@ function ReportsModule({
           customer={customer}
           dateFrom={dateFrom}
           dateTo={dateTo}
+          currentUser={currentUser}
           onClose={() => setPdfReport(p => ({ ...p, show: false }))}
         />
       )}

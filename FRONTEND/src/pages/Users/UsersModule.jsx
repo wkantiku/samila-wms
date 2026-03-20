@@ -1,11 +1,17 @@
 import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { userService } from '../../services/userService';
+import { warehouseApi } from '../../services/api';
 import './UsersModule.css';
 
-const loadWarehouses = () => {
-  try { const s = localStorage.getItem('wms_sa_whs'); return s ? JSON.parse(s) : []; } catch { return []; }
-};
+const FALLBACK_WHS = [
+  { id: 1, companyNo: 'COMP-001', name: 'Warehouse Bangkok',      code: 'WH-BKK', icon: '🏙️', active: true },
+  { id: 2, companyNo: 'COMP-001', name: 'Warehouse Nonthaburi',   code: 'WH-NTB', icon: '🏭', active: true },
+  { id: 3, companyNo: 'COMP-001', name: 'Warehouse Pathum Thani', code: 'WH-PTN', icon: '🏗️', active: true },
+  { id: 4, companyNo: 'COMP-001', name: 'Warehouse Trang',        code: 'WH-TRG', icon: '🌴', active: true },
+  { id: 5, companyNo: 'COMP-001', name: 'Warehouse Chiang Mai',   code: 'WH-CNX', icon: '⛰️', active: true },
+  { id: 6, companyNo: 'COMP-001', name: 'Warehouse Hat Yai',      code: 'WH-HYD', icon: '🌊', active: false },
+];
 
 const ALL_PAGES = [
   { key: 'dashboard',         label: '📊 Dashboard' },
@@ -14,6 +20,7 @@ const ALL_PAGES = [
   { key: 'product',           label: '🏷️ Product' },
   { key: 'picking',           label: '🔍 Picking' },
   { key: 'putaway',           label: '📌 Putaway' },
+  { key: 'packing',           label: '📦 Packing' },
   { key: 'shipping',          label: '🚚 Shipping' },
   { key: 'tarif',             label: '💰 Tarif Management' },
   { key: 'customer',          label: '🏢 Customer' },
@@ -23,8 +30,16 @@ const ALL_PAGES = [
   { key: 'users',             label: '👥 Users' },
   { key: 'settings',          label: '⚙️ Settings' },
 ];
-const allMenusOn  = () => Object.fromEntries(ALL_PAGES.map(p => [p.key, true]));
-const allMenusOff = () => Object.fromEntries(ALL_PAGES.map(p => [p.key, false]));
+const makeMenuPerm = (on = false) => ({ view: on, add: on, edit: on, delete: on });
+const allMenusOn  = () => Object.fromEntries(ALL_PAGES.map(p => [p.key, makeMenuPerm(true)]));
+const allMenusOff = () => Object.fromEntries(ALL_PAGES.map(p => [p.key, makeMenuPerm(false)]));
+
+// รองรับทั้ง format เดิม (boolean) และ format ใหม่ (object)
+const normalizeMenus = (m) => Object.fromEntries(ALL_PAGES.map(p => {
+  const v = m?.[p.key];
+  if (v && typeof v === 'object') return [p.key, { view: !!v.view, add: !!v.add, edit: !!v.edit, delete: !!v.delete }];
+  return [p.key, makeMenuPerm(!!v)];
+}));
 
 const makeEmptyForm = () => ({
   name: '', username: '', email: '', companyNo: '',
@@ -36,7 +51,10 @@ const loadCompanies = () => {
   try { const s = localStorage.getItem('wms_sa_companies'); return s ? JSON.parse(s) : []; } catch { return []; }
 };
 
-export default function UsersModule({ users, setUsers }) {
+export default function UsersModule({ users, setUsers, currentUser }) {
+  const isSuperAdmin = currentUser?.role === 'superadmin';
+  const isAdmin      = currentUser?.role === 'admin';
+  const myCompanyNo  = currentUser?.companyNo || '';
   const { t } = useTranslation();
 
   useEffect(() => {
@@ -47,6 +65,13 @@ export default function UsersModule({ users, setUsers }) {
           return data.map(u => ({ ...u, password: localPwMap[u.id] || u.password || '(API)' }));
         });
       }
+    }).catch(() => {});
+  }, []);
+
+  const [allWhs, setAllWhs] = useState(FALLBACK_WHS);
+  useEffect(() => {
+    warehouseApi.list().then(data => {
+      if (data && data.length > 0) setAllWhs(data);
     }).catch(() => {});
   }, []);
 
@@ -66,14 +91,23 @@ export default function UsersModule({ users, setUsers }) {
   const [showCPwNew, setShowCPwNew]         = useState(false);
 
   const regularUsers = users.filter(u => u.role !== 'superadmin');
-  const filtered = regularUsers.filter(u =>
-    u.name.includes(search) || u.username.includes(search) || u.email.includes(search)
+  // admin sees only users within their own company; superadmin sees all
+  const scopedUsers = (isSuperAdmin || !myCompanyNo)
+    ? regularUsers
+    : regularUsers.filter(u => u.companyNo === myCompanyNo);
+  const filtered = scopedUsers.filter(u =>
+    (u.name || '').includes(search) || (u.username || '').includes(search) || (u.email || '').includes(search)
   );
 
-  const openAdd  = () => { setForm(makeEmptyForm()); setFormError(''); setConfirmPw(''); setShowPw(false); setEditId(null); setShowForm(true); };
+  const openAdd  = () => {
+    const base = makeEmptyForm();
+    // admin: default new user to their own company
+    if (!isSuperAdmin && myCompanyNo) base.companyNo = myCompanyNo;
+    setForm(base); setFormError(''); setConfirmPw(''); setShowPw(false); setEditId(null); setShowForm(true);
+  };
   const openEdit = (u) => {
     const wh = Array.isArray(u.warehouses) ? u.warehouses : ['Warehouse A'];
-    setForm({ ...u, password: '', warehouses: wh, menus: u.menus || allMenusOff() });
+    setForm({ ...u, password: '', warehouses: wh, menus: normalizeMenus(u.menus) });
     setConfirmPw(''); setShowPw(false); setFormError('');
     setEditId(u.id); setShowForm(true);
   };
@@ -94,9 +128,10 @@ export default function UsersModule({ users, setUsers }) {
 
   const handleSave = () => {
     if (!form.name || !form.username) { setFormError('กรุณากรอกชื่อ และ Username ให้ครบถ้วน'); return; }
-    if (!editId && !form.password)    { setFormError('กรุณากรอกรหัสผ่าน'); return; }
-    if (form.password && form.password.length < 6) { setFormError('รหัสผ่านต้องมีอย่างน้อย 6 ตัวอักษร'); return; }
-    if (form.password && form.password !== confirmPw) { setFormError('รหัสผ่านไม่ตรงกัน'); return; }
+    const pw = form.password.trim();
+    if (!editId && !pw)    { setFormError('กรุณากรอกรหัสผ่าน'); return; }
+    if (pw && pw.length < 6) { setFormError('รหัสผ่านต้องมีอย่างน้อย 6 ตัวอักษร'); return; }
+    if (pw && pw !== confirmPw.trim()) { setFormError('รหัสผ่านไม่ตรงกัน'); return; }
     setFormError('');
     if (editId) {
       const payload = { name: form.name, email: form.email, role: form.role, status: form.status, menus: form.menus, warehouses: form.warehouses };
@@ -104,7 +139,7 @@ export default function UsersModule({ users, setUsers }) {
       setUsers(prev => prev.map(u => {
         if (u.id !== editId) return u;
         const updated = { ...u, ...form };
-        if (!form.password) updated.password = u.password;
+        if (!pw) updated.password = u.password; else updated.password = pw;
         return updated;
       }));
     } else {
@@ -153,6 +188,11 @@ export default function UsersModule({ users, setUsers }) {
           <p>{t('users.subtitle')}</p>
         </div>
         <div className="header-right">
+          {isAdmin && myCompanyNo && (
+            <span style={{ fontSize: 12, padding: '4px 10px', borderRadius: 6, fontFamily: 'monospace', fontWeight: 700, color: '#FFD700', background: 'rgba(255,215,0,0.08)', border: '1px solid rgba(255,215,0,0.2)', marginRight: 10 }}>
+              {myCompanyNo}
+            </span>
+          )}
           <button className="create-btn" onClick={openAdd}>➕ {t('users.addUser')}</button>
         </div>
       </div>
@@ -160,9 +200,9 @@ export default function UsersModule({ users, setUsers }) {
       {/* Summary */}
       <div className="users-summary">
         {[
-          { label: t('users.total'), value: users.length,                                color: '#00E5FF' },
-          { label: 'Active',         value: users.filter(u => u.status === 'active').length,   color: '#00CC88' },
-          { label: 'Inactive',       value: users.filter(u => u.status === 'inactive').length, color: '#FF6B6B' },
+          { label: t('users.total'), value: scopedUsers.length,                                      color: '#00E5FF' },
+          { label: 'Active',         value: scopedUsers.filter(u => u.status === 'active').length,   color: '#00CC88' },
+          { label: 'Inactive',       value: scopedUsers.filter(u => u.status === 'inactive').length, color: '#FF6B6B' },
         ].map((s, i) => (
           <div key={i} className="users-stat">
             <div className="users-stat-value" style={{ color: s.color }}>{s.value}</div>
@@ -212,9 +252,8 @@ export default function UsersModule({ users, setUsers }) {
                 </td>
                 <td>
                   {u.companyNo ? (() => {
-                    const assigned = loadWarehouses().filter(w =>
-                      w.companyNo === u.companyNo && w.active &&
-                      (u.warehouses || []).includes(w.name)
+                    const assigned = allWhs.filter(w =>
+                      w.active && (u.warehouses || []).includes(w.name)
                     );
                     return assigned.length > 0 ? (
                       <div className="wh-chips">
@@ -246,7 +285,7 @@ export default function UsersModule({ users, setUsers }) {
       {/* ── ADD/EDIT MODAL ── */}
       {showForm && (
         <div className="modal-overlay" onClick={closeForm}>
-          <div className="modal-box" onClick={e => e.stopPropagation()}>
+          <div className="modal-box modal-user" onClick={e => e.stopPropagation()}>
             <div className="modal-header">
               <h2>{editId ? `✏️ ${t('users.editTitle')}` : `➕ ${t('users.addTitle')}`}</h2>
               <button className="modal-close" onClick={closeForm}>✕</button>
@@ -269,13 +308,19 @@ export default function UsersModule({ users, setUsers }) {
                 </div>
                 <div className="form-group">
                   <label>🏢 Company</label>
-                  <select value={form.companyNo} onChange={e => setForm({ ...form, companyNo: e.target.value })}
-                    style={{ fontFamily: 'monospace', fontWeight: 700, color: '#FFD700' }}>
-                    <option value="">-- ไม่ระบุ --</option>
-                    {loadCompanies().map(c => (
-                      <option key={c.companyNo} value={c.companyNo}>{c.companyNo} — {c.name}</option>
-                    ))}
-                  </select>
+                  {isSuperAdmin ? (
+                    <select value={form.companyNo} onChange={e => setForm({ ...form, companyNo: e.target.value })}
+                      style={{ fontFamily: 'monospace', fontWeight: 700, color: '#FFD700' }}>
+                      <option value="">-- ไม่ระบุ --</option>
+                      {loadCompanies().map(c => (
+                        <option key={c.companyNo} value={c.companyNo}>{c.companyNo} — {c.name}</option>
+                      ))}
+                    </select>
+                  ) : (
+                    <div style={{ padding: '6px 10px', borderRadius: 6, fontFamily: 'monospace', fontWeight: 700, color: '#FFD700', background: 'rgba(255,215,0,0.07)', border: '1px solid rgba(255,215,0,0.2)', fontSize: 13 }}>
+                      {myCompanyNo || '—'}
+                    </div>
+                  )}
                 </div>
               </div>
               <div className="form-row-2">
@@ -284,7 +329,8 @@ export default function UsersModule({ users, setUsers }) {
                   <div style={{ position: 'relative' }}>
                     <input type={showPw ? 'text' : 'password'} value={form.password}
                       onChange={e => setForm({ ...form, password: e.target.value })}
-                      placeholder="••••••••"
+                      placeholder={editId ? '(เว้นว่างหากไม่เปลี่ยน)' : '••••••••'}
+                      autoComplete="new-password"
                       style={{ paddingRight: 36, width: '100%', boxSizing: 'border-box' }}
                     />
                     <button type="button" onClick={() => setShowPw(v => !v)}
@@ -298,7 +344,8 @@ export default function UsersModule({ users, setUsers }) {
                   <div style={{ position: 'relative' }}>
                     <input type={showPw ? 'text' : 'password'} value={confirmPw}
                       onChange={e => setConfirmPw(e.target.value)}
-                      placeholder="••••••••"
+                      placeholder={editId ? '(เว้นว่างหากไม่เปลี่ยน)' : '••••••••'}
+                      autoComplete="new-password"
                       style={{
                         paddingRight: 36, width: '100%', boxSizing: 'border-box',
                         borderColor: confirmPw && form.password !== confirmPw ? '#FF6B6B'
@@ -325,15 +372,22 @@ export default function UsersModule({ users, setUsers }) {
                   {form.companyNo && <span style={{ marginLeft: 8, fontSize: 11, fontFamily: 'monospace', color: '#FFD700', background: 'rgba(255,215,0,0.1)', padding: '1px 7px', borderRadius: 4, border: '1px solid rgba(255,215,0,0.25)' }}>{form.companyNo}</span>}
                 </label>
                 {(() => {
-                  if (!form.companyNo) return (
-                    <div style={{ fontSize: 12, color: '#3a6a82', padding: '8px 12px', borderRadius: 6, background: 'rgba(0,0,0,0.15)', border: '1px solid rgba(255,255,255,0.06)' }}>
-                      กรุณาเลือก Company ก่อน
-                    </div>
-                  );
-                  const filtered = loadWarehouses().filter(w => w.companyNo === form.companyNo && w.active);
+                  const activeWhs = allWhs.filter(w => w.active);
+                  const compWhs   = form.companyNo
+                    ? allWhs.filter(w => w.companyNo === form.companyNo && w.active)
+                    : [];
+                  let allowed = compWhs.length > 0 ? compWhs : activeWhs;
+                  // กรองเฉพาะ warehouse ที่ currentUser มีสิทธิ์ (ยกเว้น superadmin เห็นได้ทั้งหมด)
+                  if (!isSuperAdmin && currentUser?.warehouses) {
+                    const myWhs = currentUser.warehouses;
+                    if (!myWhs.includes('All')) {
+                      allowed = allowed.filter(w => myWhs.includes(w.name) || myWhs.includes(w.code));
+                    }
+                  }
+                  const filtered = allowed;
                   if (filtered.length === 0) return (
                     <div style={{ fontSize: 12, color: '#3a6a82', padding: '8px 12px', borderRadius: 6, background: 'rgba(0,0,0,0.15)', border: '1px solid rgba(255,255,255,0.06)' }}>
-                      ไม่มี Warehouse ในบริษัทนี้
+                      ไม่มี Warehouse ในระบบ
                     </div>
                   );
                   return (
@@ -360,48 +414,65 @@ export default function UsersModule({ users, setUsers }) {
                 })()}
               </div>
 
-              {/* ── Permissions ── */}
-              <div style={{ marginTop: 18 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
-                  <span style={{ fontWeight: 700, color: '#00E5FF', fontSize: 13 }}>🔐 กำหนดสิทธิ์เมนู</span>
-                  <span style={{ flex: 1 }} />
-                  <button type="button"
-                    onClick={() => setForm(p => ({ ...p, menus: allMenusOn() }))}
-                    style={{ fontSize: 11, padding: '3px 10px', borderRadius: 6, background: 'rgba(0,204,136,0.15)', border: '1px solid rgba(0,204,136,0.4)', color: '#00CC88', cursor: 'pointer' }}>
+              {/* ── Permissions Table ── */}
+              <div className="perm-section">
+                <div className="perm-section-header">
+                  <span className="perm-section-title">🔐 กำหนดสิทธิ์เมนู</span>
+                  <span className="perm-section-count">
+                    {Object.values(form.menus || {}).filter(m => m?.view).length}/{ALL_PAGES.length}
+                  </span>
+                  <button type="button" className="perm-all-btn"
+                    onClick={() => setForm(p => ({ ...p, menus: allMenusOn() }))}>
                     ✓ ทั้งหมด
                   </button>
-                  <button type="button"
-                    onClick={() => setForm(p => ({ ...p, menus: allMenusOff() }))}
-                    style={{ fontSize: 11, padding: '3px 10px', borderRadius: 6, background: 'rgba(255,107,107,0.12)', border: '1px solid rgba(255,107,107,0.35)', color: '#FF6B6B', cursor: 'pointer' }}>
+                  <button type="button" className="perm-clear-btn"
+                    onClick={() => setForm(p => ({ ...p, menus: allMenusOff() }))}>
                     ✕ ล้าง
                   </button>
-                  <span style={{ fontSize: 11, color: '#5a8fa8' }}>
-                    {Object.values(form.menus || {}).filter(Boolean).length}/{ALL_PAGES.length}
-                  </span>
                 </div>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 6 }}>
+
+                <div className="perm-table">
+                  {/* Header */}
+                  <div className="perm-row perm-row-head">
+                    <div className="perm-col-menu">เมนู</div>
+                    <div className="perm-col-cb">View</div>
+                    <div className="perm-col-cb">Add</div>
+                    <div className="perm-col-cb">Edit</div>
+                    <div className="perm-col-cb">Delete</div>
+                  </div>
+                  {/* Rows */}
                   {ALL_PAGES.map(page => {
-                    const checked = form.menus?.[page.key] || false;
+                    const perm = form.menus?.[page.key] || makeMenuPerm();
+                    const set = (field) => setForm(p => ({
+                      ...p,
+                      menus: { ...p.menus, [page.key]: { ...perm, [field]: !perm[field] } }
+                    }));
+                    const toggleView = () => {
+                      const next = !perm.view;
+                      setForm(p => ({
+                        ...p,
+                        menus: { ...p.menus, [page.key]: { view: next, add: next ? perm.add : false, edit: next ? perm.edit : false, delete: next ? perm.delete : false } }
+                      }));
+                    };
                     return (
-                      <label key={page.key}
-                        onClick={() => setForm(p => ({ ...p, menus: { ...p.menus, [page.key]: !checked } }))}
-                        style={{
-                          display: 'flex', alignItems: 'center', gap: 7, padding: '6px 10px',
-                          borderRadius: 7, cursor: 'pointer', userSelect: 'none', fontSize: 12,
-                          background: checked ? 'rgba(0,229,255,0.1)' : 'rgba(255,255,255,0.03)',
-                          border: `1px solid ${checked ? 'rgba(0,229,255,0.35)' : 'rgba(255,255,255,0.08)'}`,
-                          color: checked ? '#cce4ef' : '#5a8fa8',
-                          transition: 'all 0.15s',
-                        }}>
-                        <span style={{
-                          width: 16, height: 16, borderRadius: 4, flexShrink: 0, display: 'flex',
-                          alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 700,
-                          background: checked ? '#00E5FF' : 'rgba(255,255,255,0.05)',
-                          border: `1px solid ${checked ? '#00E5FF' : 'rgba(255,255,255,0.15)'}`,
-                          color: checked ? '#0a1628' : 'transparent',
-                        }}>✓</span>
-                        {page.label}
-                      </label>
+                      <div key={page.key} className={`perm-row ${perm.view ? 'perm-row-on' : ''}`}>
+                        <div className="perm-col-menu" onClick={toggleView}>
+                          <span className={`perm-view-dot ${perm.view ? 'on' : ''}`} />
+                          <span className="perm-menu-name">{page.label}</span>
+                        </div>
+                        <div className="perm-col-cb">
+                          <input type="checkbox" checked={!!perm.view} onChange={toggleView} />
+                        </div>
+                        <div className="perm-col-cb">
+                          <input type="checkbox" checked={!!perm.add} onChange={() => set('add')} disabled={!perm.view} />
+                        </div>
+                        <div className="perm-col-cb">
+                          <input type="checkbox" checked={!!perm.edit} onChange={() => set('edit')} disabled={!perm.view} />
+                        </div>
+                        <div className="perm-col-cb">
+                          <input type="checkbox" checked={!!perm.delete} onChange={() => set('delete')} disabled={!perm.view} />
+                        </div>
+                      </div>
                     );
                   })}
                 </div>
@@ -409,8 +480,8 @@ export default function UsersModule({ users, setUsers }) {
             </div>
             <div className="modal-footer">
               {formError && <span style={{ color: '#FF6B6B', fontSize: 12, flex: 1 }}>{formError}</span>}
-              <button className="cancel-btn" onClick={closeForm}>{t('common.cancel')}</button>
-              <button className="save-btn" onClick={handleSave}>{editId ? `💾 ${t('common.save')}` : `➕ ${t('users.addUser')}`}</button>
+              <button type="button" className="cancel-btn" onClick={closeForm}>{t('common.cancel')}</button>
+              <button type="button" className="save-btn" onClick={handleSave}>{editId ? `💾 ${t('common.save')}` : `➕ ${t('users.addUser')}`}</button>
             </div>
           </div>
         </div>

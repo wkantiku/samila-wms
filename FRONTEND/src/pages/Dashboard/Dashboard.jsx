@@ -389,7 +389,7 @@ function Dashboard() {
                     </div>
                     <span style={{ color: warn, fontSize: 11, fontWeight: 700 }}>{pct}%</span>
                   </div>
-                  <div style={{ fontSize: 10, color: '#5a8fa8', marginBottom: 8 }}>{s.used.toLocaleString()} / {s.total.toLocaleString()} units</div>
+                  <div style={{ fontSize: 10, color: '#5a8fa8', marginBottom: 8 }}>{(Number(s.used) || 0).toLocaleString()} / {(Number(s.total) || 0).toLocaleString()} units</div>
                   <div className="kpi-ops-items">
                     {[['📦 Receiving', s.receiving], ['🔍 Picking', s.picking], ['🏷️ Putaway', s.putaway], ['🚚 Shipping', s.shipping]].map(([lbl, cnt]) => (
                       <div key={lbl} className="kpi-ops-item-row" style={{ fontSize: 11, marginBottom: 2 }}>
@@ -438,7 +438,7 @@ function Dashboard() {
                         style={{ width: `${pct}%`, background: warn === 'ok' ? c.color : warn === 'warn' ? '#FFD700' : '#FF6B6B' }}
                       ></div>
                     </div>
-                    <span className="capacity-label">{c.used.toLocaleString()} / {c.allocated.toLocaleString()} m²</span>
+                    <span className="capacity-label">{(Number(c.used) || 0).toLocaleString()} / {(Number(c.allocated) || 0).toLocaleString()} m²</span>
                   </div>
                 </div>
               );

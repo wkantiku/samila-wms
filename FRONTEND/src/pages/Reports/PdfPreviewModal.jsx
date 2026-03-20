@@ -1,11 +1,23 @@
 import { useRef } from 'react';
 import { customers, reportCategories, buildReportRows } from './reportData';
 
-export default function PdfPreviewModal({ report, customer, dateFrom, dateTo, onClose }) {
+const loadCompanyInfo = (companyNo) => {
+  try {
+    const list = JSON.parse(localStorage.getItem('wms_sa_companies') || '[]');
+    return list.find(c => c.companyNo === companyNo) || null;
+  } catch { return null; }
+};
+
+export default function PdfPreviewModal({ report, customer, dateFrom, dateTo, currentUser, onClose }) {
   const printRef = useRef();
   const cust    = customers.find(c => c.key === customer);
   const catInfo = reportCategories.find(r => r.key === report.type);
   const tableData = buildReportRows(report.type, customer);
+
+  const companyInfo = loadCompanyInfo(currentUser?.companyNo);
+  const companyName    = companyInfo?.name    || currentUser?.companyName || 'Samila WMS 3PL';
+  const companyAddress = companyInfo?.address || '';
+  const companyPhone   = companyInfo?.phone   || '';
 
   const handlePrint = () => {
     const w = window.open('', '_blank');
@@ -30,8 +42,8 @@ export default function PdfPreviewModal({ report, customer, dateFrom, dateTo, on
       </style></head><body>
       <div class="doc-header">
         <div>
-          <div class="doc-logo">SAMILA 3PL</div>
-          <div style="font-size:10px;color:#888;">SAMILA 3PL Co., Ltd. | Tel: 02-123-4567</div>
+          <div class="doc-logo">${companyName}</div>
+          <div style="font-size:10px;color:#888;">${companyAddress}${companyAddress && companyPhone ? ' | ' : ''}${companyPhone ? 'Tel: ' + companyPhone : ''}</div>
         </div>
         <div style="text-align:right;">
           <div class="doc-title">${report.name}</div>
@@ -50,7 +62,7 @@ export default function PdfPreviewModal({ report, customer, dateFrom, dateTo, on
         <tbody>${tableData.rows.map(row => `<tr>${row.map(cell => `<td>${cell}</td>`).join('')}</tr>`).join('')}</tbody>
       </table>
       ${tableData.footer ? `<div class="total-row">${tableData.footer}</div>` : ''}
-      <div class="footer-note">สร้างโดยระบบ Samila WMS 3PL | ${new Date().toLocaleString('th-TH')}</div>
+      <div class="footer-note">สร้างโดยระบบ ${companyName} | ${new Date().toLocaleString('th-TH')}</div>
       <div class="sign-area">
         <div class="sign-box">ผู้จัดทำ<br/><br/>______________________<br/>วันที่ ____________</div>
         <div class="sign-box">ผู้อนุมัติ<br/><br/>______________________<br/>วันที่ ____________</div>
@@ -79,8 +91,11 @@ export default function PdfPreviewModal({ report, customer, dateFrom, dateTo, on
           <div className="pdf-doc">
             <div className="pdf-doc-header">
               <div className="pdf-doc-company">
-                <div className="pdf-doc-logo">SAMILA 3PL</div>
-                <div className="pdf-doc-addr">123 Logistics Park, Bangkok 10400<br />Tel: 02-123-4567</div>
+                <div className="pdf-doc-logo">{companyName}</div>
+                <div className="pdf-doc-addr">
+                  {companyAddress && <>{companyAddress}<br /></>}
+                  {companyPhone && <>Tel: {companyPhone}</>}
+                </div>
               </div>
               <div className="pdf-doc-title-block">
                 <div className="pdf-doc-rpt-title">{catInfo?.icon} {catInfo?.label || report.name}</div>
@@ -117,7 +132,7 @@ export default function PdfPreviewModal({ report, customer, dateFrom, dateTo, on
 
             <div className="pdf-summary-row">
               <div className="pdf-summary-cell"><div className="pdf-summary-label">จำนวนแถว</div><div className="pdf-summary-val">{tableData.rows.length} รายการ</div></div>
-              <div className="pdf-summary-cell"><div className="pdf-summary-label">สร้างโดย</div><div className="pdf-summary-val">Samila WMS 3PL</div></div>
+              <div className="pdf-summary-cell"><div className="pdf-summary-label">สร้างโดย</div><div className="pdf-summary-val">{companyName}</div></div>
               <div className="pdf-summary-cell"><div className="pdf-summary-label">วันที่พิมพ์</div><div className="pdf-summary-val">{new Date().toLocaleString('th-TH')}</div></div>
             </div>
 
@@ -128,7 +143,7 @@ export default function PdfPreviewModal({ report, customer, dateFrom, dateTo, on
             </div>
 
             <div className="pdf-footer-note">
-              รายงานนี้สร้างโดยระบบ Samila WMS 3PL อัตโนมัติ — ข้อมูล ณ วันที่ {new Date().toLocaleDateString('th-TH')}
+              รายงานนี้สร้างโดยระบบ {companyName} อัตโนมัติ — ข้อมูล ณ วันที่ {new Date().toLocaleDateString('th-TH')}
             </div>
           </div>
         </div>

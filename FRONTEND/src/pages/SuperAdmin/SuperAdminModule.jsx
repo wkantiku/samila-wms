@@ -1,6 +1,26 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
+import { warehouseApi, customerApi } from '../../services/api';
+import { userService } from '../../services/userService';
 import '../Settings/SettingsModule.css';
+
+// ── Map Customer API → Company format ─────────────────────────────────────────
+const custToComp = (c) => ({
+  _custId:       c.id,
+  companyNo:     c.code,
+  name:          c.name || c.name_th || '',
+  taxId:         c.tax_id || '',
+  address:       c.address || '',
+  phone:         c.phone || '',
+  email:         c.email || '',
+  logo:          c.logo || '',
+  active:        c.status === 'active',
+  currency:      'THB',
+  dateFormat:    'DD/MM/YYYY',
+  timezone:      'Asia/Bangkok',
+  language:      'th',
+  sessionTimeout:'30',
+});
 
 // ── Auto Company No. ──────────────────────────────────────────────────────────
 const nextCompanyNo = (companies) => {
@@ -22,7 +42,7 @@ const INIT_COMPANIES = [
 const EMPTY_COMPANY = {
   companyNo: '', name: '', taxId: '', address: '', phone: '', email: '',
   currency: 'THB', dateFormat: 'DD/MM/YYYY', timezone: 'Asia/Bangkok',
-  language: 'th', sessionTimeout: '30', active: true,
+  language: 'th', sessionTimeout: '30', active: true, logo: '',
 };
 
 const INIT_WH = [
@@ -47,6 +67,7 @@ const ALL_PAGES = [
   { key: 'product',           label: '🏷️ Product' },
   { key: 'picking',           label: '🔍 Picking' },
   { key: 'putaway',           label: '📌 Putaway' },
+  { key: 'packing',           label: '📦 Packing' },
   { key: 'shipping',          label: '🚚 Shipping' },
   { key: 'tarif',             label: '💰 Tarif Management' },
   { key: 'customer',          label: '🏢 Customer' },
@@ -64,11 +85,11 @@ const allOff = () => Object.fromEntries(ALL_PAGES.map(p => [p.key, false]));
 const emptyUserForm = () => ({
   firstName: '', lastName: '', name: '', username: '', email: '',
   password: '', confirmPw: '', warehouses: [],
-  status: 'active', menus: allOff(), companyNo: '',
+  status: 'active', menus: allOff(), companyNo: '', role: 'staff',
 });
 
 // ── Component ─────────────────────────────────────────────────────────────────
-export default function SuperAdminModule({ currentUser, users, setUsers }) {
+export default function SuperAdminModule({ currentUser, users, setUsers, navigateToCustomer }) {
   const { i18n } = useTranslation();
   const [tab, setTab] = useState('profile');
 
@@ -97,20 +118,32 @@ export default function SuperAdminModule({ currentUser, users, setUsers }) {
     setTimeout(() => setProfSaved(false), 2500);
   };
 
-  // ── Companies (General) ──────────────────────────────────────────────────
-  const [companies, setCompanies] = useState(() => {
-    try { const s = localStorage.getItem('wms_sa_companies'); return s ? JSON.parse(s) : INIT_COMPANIES; } catch { return INIT_COMPANIES; }
-  });
-  useEffect(() => { localStorage.setItem('wms_sa_companies', JSON.stringify(companies)); }, [companies]);
+  // ── Companies (= Customers from API) ─────────────────────────────────────
+  const [companies, setCompanies] = useState(INIT_COMPANIES);
+  const [compLoading, setCompLoading] = useState(false);
 
-  const [compForm, setCompForm] = useState(() => {
-    try { const s = localStorage.getItem('wms_sa_companies'); const c = s ? JSON.parse(s) : INIT_COMPANIES; return { ...EMPTY_COMPANY, companyNo: nextCompanyNo(c) }; } catch { return { ...EMPTY_COMPANY, companyNo: nextCompanyNo(INIT_COMPANIES) }; }
-  });
-  const [editCompNo,   setEditCompNo]   = useState(null);  // companyNo being edited
-  const [compError,    setCompError]    = useState('');
-  const [compSaved,    setCompSaved]    = useState(false);
-  const [delCompNo,    setDelCompNo]    = useState(null);
-  const [expandedComp, setExpandedComp] = useState(null); // accordion
+  const loadCompanies = useCallback(async () => {
+    setCompLoading(true);
+    try {
+      const data = await customerApi.list();
+      if (data && data.length > 0) {
+        const mapped = data.map(custToComp);
+        setCompanies(mapped);
+        // sync localStorage so billing header / other modules ยังใช้ได้
+        localStorage.setItem('wms_sa_companies', JSON.stringify(mapped));
+      }
+    } catch { /* keep INIT_COMPANIES */ }
+    finally { setCompLoading(false); }
+  }, []);
+
+  useEffect(() => { loadCompanies(); }, [loadCompanies]);
+
+  const [compForm, setCompForm]     = useState({ ...EMPTY_COMPANY });
+  const [editCompNo, setEditCompNo] = useState(null);
+  const [compError,  setCompError]  = useState('');
+  const [compSaved,  setCompSaved]  = useState(false);
+  const [delCompNo,  setDelCompNo]  = useState(null);
+  const [expandedComp, setExpandedComp] = useState(null);
 
   const openAddComp = () => {
     setCompForm({ ...EMPTY_COMPANY, companyNo: nextCompanyNo(companies) });
@@ -121,70 +154,144 @@ export default function SuperAdminModule({ currentUser, users, setUsers }) {
     setEditCompNo(c.companyNo); setCompError('');
     setExpandedComp(c.companyNo);
   };
-  const saveComp = () => {
+
+  const saveComp = async () => {
     if (!compForm.name.trim()) { setCompError('กรุณากรอกชื่อบริษัท'); return; }
     setCompError('');
-
-    if (editCompNo) {
-      const updated = companies.map(c =>
-        c.companyNo === editCompNo ? { ...compForm, companyNo: editCompNo } : c
-      );
-      setCompanies(updated);
-      setCompForm({ ...EMPTY_COMPANY, companyNo: nextCompanyNo(updated) });
+    const body = {
+      code:    compForm.companyNo || nextCompanyNo(companies),
+      name:    compForm.name.trim(),
+      tax_id:  compForm.taxId || '',
+      address: compForm.address || '',
+      phone:   compForm.phone || '',
+      email:   compForm.email || '',
+      logo:    compForm.logo || '',
+      status:  compForm.active ? 'active' : 'inactive',
+    };
+    try {
+      if (editCompNo && compForm._custId) {
+        await customerApi.update(compForm._custId, body);
+      } else {
+        await customerApi.create(body);
+      }
+      await loadCompanies();
+      setCompForm({ ...EMPTY_COMPANY, companyNo: nextCompanyNo(companies) });
       setEditCompNo(null);
-    } else {
-      const compNo = compForm.companyNo || nextCompanyNo(companies);
-      const newEntry = { ...compForm, companyNo: compNo };
-      const updated = [...companies, newEntry];
-      setCompanies(updated);
-      setUserLimits(prev => ({ ...prev, [compNo]: 20 }));
-      setCompForm({ ...EMPTY_COMPANY, companyNo: nextCompanyNo(updated) });
-    }
-
-    setCompSaved(true);
-    setTimeout(() => setCompSaved(false), 2500);
+      setCompSaved(true);
+      setTimeout(() => setCompSaved(false), 2500);
+    } catch (e) { setCompError(e.message || 'บันทึกไม่สำเร็จ'); }
   };
+
   const cancelComp = () => {
     setCompForm({ ...EMPTY_COMPANY, companyNo: nextCompanyNo(companies) });
     setEditCompNo(null); setCompError('');
   };
-  const deleteComp = () => {
-    setCompanies(prev => prev.filter(c => c.companyNo !== delCompNo));
+
+  const deleteComp = async () => {
+    const comp = companies.find(c => c.companyNo === delCompNo);
+    if (comp?._custId) {
+      try { await customerApi.remove(comp._custId); } catch {}
+    }
     setDelCompNo(null);
+    await loadCompanies();
   };
-  const toggleCompActive = (no) => setCompanies(prev => prev.map(c => c.companyNo === no ? { ...c, active: !c.active } : c));
+
+  const toggleCompActive = async (no) => {
+    const comp = companies.find(c => c.companyNo === no);
+    if (!comp?._custId) return;
+    try {
+      await customerApi.update(comp._custId, { status: comp.active ? 'inactive' : 'active' });
+      await loadCompanies();
+    } catch {}
+  };
 
   // ── Warehouses ───────────────────────────────────────────────────────────
-  const [whs, setWhs] = useState(() => {
-    try { const s = localStorage.getItem('wms_sa_whs'); return s ? JSON.parse(s) : INIT_WH; } catch { return INIT_WH; }
-  });
-  useEffect(() => { localStorage.setItem('wms_sa_whs', JSON.stringify(whs)); }, [whs]);
+  const [whs,         setWhs]         = useState([]);
+  const [whLoading,   setWhLoading]   = useState(false);
   const [showWhModal, setShowWhModal] = useState(false);
   const [editWhId,    setEditWhId]    = useState(null);
   const [whForm,      setWhForm]      = useState(EMPTY_WH);
   const [whError,     setWhError]     = useState('');
-  const [whFilter,    setWhFilter]    = useState('ALL'); // filter by companyNo
+  const [whFilter,    setWhFilter]    = useState('ALL');
 
-  const openAddWh  = () => { setWhForm({ ...EMPTY_WH, companyNo: companies[0]?.companyNo || '' }); setEditWhId(null); setWhError(''); setShowWhModal(true); };
-  const openEditWh = (w) => { setWhForm({ ...w }); setEditWhId(w.id); setWhError(''); setShowWhModal(true); };
-  const toggleWhActive = (id) => setWhs(p => p.map(w => w.id === id ? { ...w, active: !w.active } : w));
-  const deleteWh = (id) => setWhs(p => p.filter(w => w.id !== id));
+  const loadWhs = useCallback(async () => {
+    setWhLoading(true);
+    try {
+      const data = await warehouseApi.list();
+      // If DB is empty, seed with initial warehouses
+      if (!data || data.length === 0) {
+        try {
+          const seeded = await Promise.all(
+            INIT_WH.map(w => warehouseApi.create({
+              name: w.name, code: w.code, province: w.province,
+              address: w.address, companyNo: w.companyNo, icon: w.icon,
+              wh_type: w.type, zones: w.zones, staff: w.staff,
+              capacity: w.capacity, used: w.used, active: w.active,
+            }).catch(() => null))
+          );
+          const created = seeded.filter(Boolean);
+          setWhs(created.length > 0 ? created : INIT_WH);
+        } catch { setWhs(INIT_WH); }
+      } else {
+        setWhs(data);
+      }
+    }
+    catch { setWhs(INIT_WH); }
+    finally { setWhLoading(false); }
+  }, []);
 
-  const saveWh = () => {
-    if (!whForm.companyNo) { setWhError('กรุณาเลือก Company'); return; }
-    if (!whForm.name.trim() || !whForm.code.trim() || !whForm.province.trim() || !whForm.capacity) {
-      setWhError('กรุณากรอกข้อมูลที่จำเป็น (ชื่อ, รหัส, จังหวัด, ขนาดตารางเมตร)'); return;
-    }
-    if (!editWhId && whs.find(w => w.code.toUpperCase() === whForm.code.trim().toUpperCase())) {
-      setWhError('รหัสคลังนี้มีอยู่แล้ว'); return;
-    }
-    if (editWhId) {
-      setWhs(p => p.map(w => w.id === editWhId ? { ...w, ...whForm, capacity: +whForm.capacity, zones: +whForm.zones || 0, staff: +whForm.staff || 0 } : w));
-    } else {
-      setWhs(p => [...p, { ...whForm, id: Date.now(), capacity: +whForm.capacity, zones: +whForm.zones || 0, staff: +whForm.staff || 0, used: 0 }]);
-    }
-    setShowWhModal(false);
+  useEffect(() => { loadWhs(); }, [loadWhs]);
+
+  const openAddWh  = () => { setWhForm({ ...EMPTY_WH, companyNo: companies[0]?.companyNo || 'COMP-001' }); setEditWhId(null); setWhError(''); setShowWhModal(true); };
+  const openEditWh = (w) => { setWhForm({ ...w, type: w.type || 'General' }); setEditWhId(w.id); setWhError(''); setShowWhModal(true); };
+
+  const toggleWhActive = async (id) => {
+    try { const updated = await warehouseApi.toggle(id); setWhs(p => p.map(w => w.id === id ? updated : w)); }
+    catch (e) { alert(e.message); }
   };
+
+  const deleteWh = async (id) => {
+    if (!window.confirm('ลบ Warehouse นี้?')) return;
+    try { await warehouseApi.remove(id); setWhs(p => p.filter(w => w.id !== id)); }
+    catch (e) { alert(e.message); }
+  };
+
+  const saveWh = async () => {
+    if (!whForm.name.trim() || !whForm.code.trim() || !whForm.province.trim()) {
+      setWhError('กรุณากรอกข้อมูลที่จำเป็น (ชื่อ, รหัส, จังหวัด)'); return;
+    }
+    const body = {
+      name: whForm.name.trim(),
+      code: whForm.code.trim().toUpperCase(),
+      province: whForm.province.trim(),
+      address: whForm.address || '',
+      companyNo: whForm.companyNo || 'COMP-001',
+      icon: whForm.icon || '🏭',
+      wh_type: whForm.type || 'General',
+      zones: +whForm.zones || 0,
+      staff: +whForm.staff || 0,
+      capacity: +whForm.capacity || 0,
+      active: whForm.active !== false,
+    };
+    try {
+      if (editWhId) {
+        const updated = await warehouseApi.update(editWhId, body);
+        setWhs(p => p.map(w => w.id === editWhId ? updated : w));
+      } else {
+        const created = await warehouseApi.create(body);
+        setWhs(p => [...p, created]);
+      }
+      setShowWhModal(false);
+    } catch (e) { setWhError(e.message); }
+  };
+
+  // Build company options directly from warehouse data (guaranteed to match)
+  const whCompanyOptions = [...new Map(
+    whs.filter(w => w.companyNo).map(w => [w.companyNo, w.companyNo])
+  ).entries()].map(([code]) => {
+    const comp = companies.find(c => c.companyNo === code);
+    return { code, label: comp ? `${code} — ${comp.name}` : code };
+  }).sort((a, b) => a.code.localeCompare(b.code));
 
   const filteredWhs = whFilter === 'ALL' ? whs : whs.filter(w => w.companyNo === whFilter);
 
@@ -214,22 +321,39 @@ export default function SuperAdminModule({ currentUser, users, setUsers }) {
     setUserForm({ ...u, firstName: parts[0] || '', lastName: parts.slice(1).join(' ') || '', password: '', confirmPw: '' });
     setEditUserId(u.id); setUserError(''); setShowUPw(false);
   };
-  const saveUser = () => {
+  const saveUser = async () => {
     if (!userForm.firstName || !userForm.username) { setUserError('กรุณากรอกชื่อและ Username'); return; }
     if (!editUserId && !userForm.password)          { setUserError('กรุณากรอกรหัสผ่าน'); return; }
     if (userForm.password && userForm.password !== userForm.confirmPw) { setUserError('รหัสผ่านไม่ตรงกัน'); return; }
     setUserError('');
     const fullName = `${userForm.firstName} ${userForm.lastName}`.trim();
-    const data = { ...userForm, name: fullName };
-    if (editUserId) {
-      setUsers(prev => prev.map(u => {
-        if (u.id !== editUserId) return u;
-        const updated = { ...u, ...data };
-        if (!userForm.password) updated.password = u.password;
-        return updated;
-      }));
-    } else {
-      setUsers(prev => [...prev, { ...data, id: Date.now(), lastLogin: '-' }]);
+    const payload = {
+      name: fullName, email: userForm.email, role: userForm.role,
+      warehouses: userForm.warehouses, menus: userForm.menus, status: userForm.status,
+      company_no: userForm.companyNo || '',
+      ...(userForm.password ? { password: userForm.password } : {}),
+    };
+    try {
+      if (editUserId) {
+        const updated = await userService.update(editUserId, payload);
+        setUsers(prev => prev.map(u => u.id === editUserId ? { ...u, ...updated, companyNo: updated.companyNo || '' } : u));
+      } else {
+        const created = await userService.create({ ...payload, username: userForm.username });
+        setUsers(prev => [...prev, { ...created, companyNo: created.companyNo || '', lastLogin: '-' }]);
+      }
+    } catch {
+      // fallback: local state only
+      const data = { ...userForm, name: fullName };
+      if (editUserId) {
+        setUsers(prev => prev.map(u => {
+          if (u.id !== editUserId) return u;
+          const upd = { ...u, ...data };
+          if (!userForm.password) upd.password = u.password;
+          return upd;
+        }));
+      } else {
+        setUsers(prev => [...prev, { ...data, id: Date.now(), lastLogin: '-' }]);
+      }
     }
     setUserForm(emptyUserForm()); setEditUserId(null);
   };
@@ -424,6 +548,34 @@ export default function SuperAdminModule({ currentUser, users, setUsers }) {
                   </div>
                 </div>
 
+                {/* Logo Upload */}
+                <div className="form-group" style={{ marginBottom: 8 }}>
+                  <label style={{ fontSize: 11 }}>🖼️ Logo บริษัท (ใช้ใน Billing)</label>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 4 }}>
+                    {compForm.logo
+                      ? <img src={compForm.logo} alt="logo" style={{ height: 52, maxWidth: 120, objectFit: 'contain', borderRadius: 6, border: '1px solid rgba(255,255,255,0.1)', background: '#fff', padding: 4 }} />
+                      : <div style={{ height: 52, width: 80, borderRadius: 6, border: '1px dashed rgba(255,255,255,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#3a6a82', fontSize: 11 }}>No Logo</div>
+                    }
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                      <label style={{ cursor: 'pointer', padding: '4px 12px', borderRadius: 6, background: 'rgba(0,229,255,0.1)', border: '1px solid rgba(0,229,255,0.25)', color: '#00E5FF', fontSize: 11, fontWeight: 600 }}>
+                        📁 เลือกรูป
+                        <input type="file" accept="image/*" style={{ display: 'none' }}
+                          onChange={e => {
+                            const file = e.target.files[0];
+                            if (!file) return;
+                            const reader = new FileReader();
+                            reader.onload = ev => setCompForm(p => ({ ...p, logo: ev.target.result }));
+                            reader.readAsDataURL(file);
+                          }} />
+                      </label>
+                      {compForm.logo && (
+                        <button type="button" style={{ padding: '4px 12px', borderRadius: 6, background: 'rgba(255,107,107,0.1)', border: '1px solid rgba(255,107,107,0.3)', color: '#FF6B6B', fontSize: 11, cursor: 'pointer' }}
+                          onClick={() => setCompForm(p => ({ ...p, logo: '' }))}>✕ ลบ Logo</button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
                 <div style={{ display: 'flex', gap: 6 }}>
                   <div className="form-group" style={{ flex: 1, marginBottom: 8 }}>
                     <label style={{ fontSize: 11 }}>สกุลเงิน</label>
@@ -550,6 +702,14 @@ export default function SuperAdminModule({ currentUser, users, setUsers }) {
                               onClick={() => setExpandedComp(isExp ? null : c.companyNo)}
                               style={{ fontSize: 12 }}>{isExp ? '▲' : '▼'}</button>
                             <button className="icon-btn" title="แก้ไข" onClick={() => openEditComp(c)}>✏️</button>
+                            {navigateToCustomer && (
+                              <button
+                                title="ดู Customer ที่สร้างไว้"
+                                onClick={() => navigateToCustomer(c.companyNo)}
+                                style={{ padding: '4px 10px', background: 'rgba(0,204,136,0.12)', border: '1px solid rgba(0,204,136,0.35)', color: '#00CC88', borderRadius: 5, fontSize: 11, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                                🏢 View Customers →
+                              </button>
+                            )}
                             <button className={`status-toggle ${c.active ? 'active' : 'inactive'}`} style={{ fontSize: 11, padding: '3px 8px' }}
                               onClick={() => toggleCompActive(c.companyNo)}>
                               {c.active ? 'Active' : 'Inactive'}
@@ -624,9 +784,11 @@ export default function SuperAdminModule({ currentUser, users, setUsers }) {
                 {/* Filter by company */}
                 <select style={{ fontSize: 12, padding: '4px 8px', borderRadius: 6 }}
                   value={whFilter} onChange={e => setWhFilter(e.target.value)}>
-                  <option value="ALL">ทุกบริษัท</option>
-                  {companies.map(c => (
-                    <option key={c.companyNo} value={c.companyNo}>{c.companyNo} — {c.name}</option>
+                  <option value="ALL">ทุกบริษัท ({whs.length})</option>
+                  {whCompanyOptions.map(o => (
+                    <option key={o.code} value={o.code}>
+                      {o.label} ({whs.filter(w => w.companyNo === o.code).length})
+                    </option>
                   ))}
                 </select>
               </div>
@@ -634,7 +796,8 @@ export default function SuperAdminModule({ currentUser, users, setUsers }) {
             </div>
 
             <div className="wh-grid">
-              {filteredWhs.map(wh => {
+              {whLoading && <div style={{ gridColumn: '1/-1', textAlign: 'center', padding: 30, color: '#3a6a82' }}>กำลังโหลด...</div>}
+              {!whLoading && filteredWhs.map(wh => {
                 const pct   = wh.capacity > 0 ? Math.round((wh.used / wh.capacity) * 100) : 0;
                 const color = pct >= 85 ? '#FF6B6B' : pct >= 65 ? '#FFD700' : '#00CC88';
                 const comp  = companies.find(c => c.companyNo === wh.companyNo);
@@ -671,7 +834,7 @@ export default function SuperAdminModule({ currentUser, users, setUsers }) {
                     </div>
                     <div className="wh-capacity-row">
                       <span className="wh-cap-label">ขนาด</span>
-                      <span className="wh-cap-num" style={{ color }}>{wh.used.toLocaleString()} / {wh.capacity.toLocaleString()} ตร.ม.</span>
+                      <span className="wh-cap-num" style={{ color }}>{(Number(wh.used) || 0).toLocaleString()} / {(Number(wh.capacity) || 0).toLocaleString()} ตร.ม.</span>
                     </div>
                     <div className="wh-bar-bg">
                       <div className="wh-bar-fill" style={{ width: `${pct}%`, background: color }} />
@@ -679,7 +842,7 @@ export default function SuperAdminModule({ currentUser, users, setUsers }) {
                   </div>
                 );
               })}
-              {filteredWhs.length === 0 && (
+              {!whLoading && filteredWhs.length === 0 && (
                 <div style={{ gridColumn: '1/-1', textAlign: 'center', padding: 30, color: '#3a6a82', fontSize: 13 }}>ไม่มี Warehouse ในบริษัทนี้</div>
               )}
             </div>
@@ -735,6 +898,7 @@ export default function SuperAdminModule({ currentUser, users, setUsers }) {
                           <option>General</option><option>General + Cold Chain</option>
                           <option>General + Hazmat</option><option>Distribution Center</option>
                           <option>Cold Chain</option><option>Cross-Dock</option>
+                          <option>Hazmat</option>
                         </select>
                       </div>
                     </div>
@@ -914,6 +1078,16 @@ export default function SuperAdminModule({ currentUser, users, setUsers }) {
                     </select>
                   </div>
                 </div>
+                <div className="form-group" style={{ marginBottom: 8 }}>
+                  <label style={{ fontSize: 11 }}>🔑 Role</label>
+                  <select style={{ width: '100%', fontSize: 12, padding: '5px 7px', fontWeight: 700 }}
+                    value={userForm.role || 'staff'}
+                    onChange={e => setUserForm(p => ({ ...p, role: e.target.value }))}>
+                    <option value="staff">Staff — พนักงานทั่วไป</option>
+                    <option value="admin_customer">Admin Customer — ดูและแก้ไขคลังสินค้าของบริษัท</option>
+                    <option value="admin">Admin — ผู้ดูแลระบบ</option>
+                  </select>
+                </div>
                 <div style={{ display: 'flex', gap: 6 }}>
                   <div className="form-group" style={{ flex: 1, marginBottom: 8, position: 'relative' }}>
                     <label style={{ fontSize: 11 }}>{editUserId ? 'Password ใหม่' : 'Password *'}</label>
@@ -938,20 +1112,21 @@ export default function SuperAdminModule({ currentUser, users, setUsers }) {
                 </div>
                 <div className="form-group" style={{ marginBottom: 10 }}>
                   <label style={{ fontSize: 11 }}>🏭 Warehouse</label>
-                  {!userForm.companyNo ? (
-                    <div style={{ fontSize: 11, color: '#3a6a82', padding: '6px 10px', borderRadius: 6, background: 'rgba(0,0,0,0.15)', border: '1px solid rgba(255,255,255,0.06)' }}>
-                      กรุณาเลือก Company ก่อน
-                    </div>
-                  ) : (() => {
-                    const compWhs = whs.filter(w => w.companyNo === userForm.companyNo && w.active);
-                    if (compWhs.length === 0) return (
+                  {(() => {
+                    const activeWhs = whs.filter(w => w.active);
+                    const compWhs   = userForm.companyNo
+                      ? whs.filter(w => w.companyNo === userForm.companyNo && w.active)
+                      : [];
+                    // ถ้าไม่มี warehouse ของ company นั้น ใช้ warehouse ทั้งหมด
+                    const displayWhs = compWhs.length > 0 ? compWhs : activeWhs;
+                    if (displayWhs.length === 0) return (
                       <div style={{ fontSize: 11, color: '#3a6a82', padding: '6px 10px', borderRadius: 6, background: 'rgba(0,0,0,0.15)', border: '1px solid rgba(255,255,255,0.06)' }}>
-                        ไม่มี Warehouse ในบริษัทนี้
+                        ไม่มี Warehouse ในระบบ
                       </div>
                     );
                     return (
                       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
-                        {compWhs.map(w => {
+                        {displayWhs.map(w => {
                           const checked = userForm.warehouses.includes(w.name);
                           return (
                             <label key={w.id} className={`wh-checkbox-item ${checked ? 'checked' : ''}`}
@@ -1016,7 +1191,7 @@ export default function SuperAdminModule({ currentUser, users, setUsers }) {
                 <thead>
                   <tr>
                     <th>#</th><th>ชื่อ</th><th>Username</th><th>Email</th>
-                    <th>Company</th><th>Warehouse</th><th style={{ textAlign: 'center' }}>สิทธิ์เมนู</th>
+                    <th>Role</th><th>Company</th><th>Warehouse</th><th style={{ textAlign: 'center' }}>สิทธิ์เมนู</th>
                     <th>Status</th><th style={{ textAlign: 'center' }}>จัดการ</th>
                   </tr>
                 </thead>
@@ -1039,6 +1214,13 @@ export default function SuperAdminModule({ currentUser, users, setUsers }) {
                         </td>
                         <td><span className="mono" style={{ color: '#7ecadf', fontSize: 12 }}>{u.username}</span></td>
                         <td style={{ color: '#5a8fa8', fontSize: 12 }}>{u.email}</td>
+                        <td>
+                          {u.role === 'admin_customer'
+                            ? <span style={{ padding: '2px 8px', borderRadius: 4, fontSize: 10, fontWeight: 700, background: 'rgba(0,204,136,0.12)', border: '1px solid rgba(0,204,136,0.3)', color: '#00CC88' }}>Admin Customer</span>
+                            : u.role === 'admin'
+                            ? <span style={{ padding: '2px 8px', borderRadius: 4, fontSize: 10, fontWeight: 700, background: 'rgba(0,188,212,0.12)', border: '1px solid rgba(0,188,212,0.3)', color: '#00BCD4' }}>Admin</span>
+                            : <span style={{ padding: '2px 8px', borderRadius: 4, fontSize: 10, fontWeight: 700, background: 'rgba(90,143,168,0.12)', border: '1px solid rgba(90,143,168,0.3)', color: '#5a8fa8' }}>Staff</span>}
+                        </td>
                         <td>
                           {u.companyNo
                             ? <span style={{ padding: '2px 8px', borderRadius: 4, fontSize: 11, fontWeight: 700, fontFamily: 'monospace', background: 'rgba(255,215,0,0.1)', border: '1px solid rgba(255,215,0,0.25)', color: '#FFD700' }}>{u.companyNo}</span>
@@ -1074,7 +1256,7 @@ export default function SuperAdminModule({ currentUser, users, setUsers }) {
                     );
                   })}
                   {regularUsers.length === 0 && (
-                    <tr><td colSpan={9} style={{ textAlign: 'center', padding: 20, color: '#3a6a82' }}>ยังไม่มี User</td></tr>
+                    <tr><td colSpan={10} style={{ textAlign: 'center', padding: 20, color: '#3a6a82' }}>ยังไม่มี User</td></tr>
                   )}
                 </tbody>
               </table>

@@ -1,12 +1,12 @@
 import { useState, useMemo, useEffect } from 'react';
 import { csService } from '../../services/csService';
+import { customerApi } from '../../services/api';
 import './CSModule.css';
 
 const CS_CATEGORIES   = ['Complaint', 'Inquiry', 'Return Request', 'Damage Report', 'Delivery Issue', 'Other'];
 const CS_PRIORITIES   = ['Low', 'Medium', 'High', 'Urgent'];
 const CS_STATUSES     = ['Open', 'In Progress', 'Resolved', 'Closed'];
 const COMPLAINT_TYPES = ['สินค้าเสียหาย', 'สินค้าไม่ครบ', 'สินค้าผิดรายการ', 'ส่งสินค้าช้า', 'บรรจุภัณฑ์ชำรุด', 'สินค้าหมดอายุ', 'อื่นๆ'];
-const CUSTOMERS       = ['Customer A', 'Customer B', 'Customer C', 'Customer D'];
 
 const PRIORITY_COLOR = {
   Low:    { bg: 'rgba(90,143,168,0.15)',  color: '#5a8fa8' },
@@ -100,12 +100,19 @@ const initCS = [
   },
 ];
 
-export default function CSModule({ cases, setCases }) {
+export default function CSModule({ cases, setCases, currentUser }) {
   useEffect(() => {
     csService.getAll().then(data => {
       if (Array.isArray(data) && data.length > 0) setCases(data);
     }).catch(() => {});
   }, []);
+
+  const [custList, setCustList] = useState([]);
+  useEffect(() => {
+    customerApi.list(currentUser?.companyNo).then(data => {
+      if (Array.isArray(data)) setCustList(data.map(c => c.name).filter(Boolean));
+    }).catch(() => {});
+  }, [currentUser?.companyNo]);
 
   const [activeTab, setActiveTab] = useState('list');
   const [form, setForm]           = useState(emptyForm);
@@ -352,7 +359,7 @@ export default function CSModule({ cases, setCases }) {
                   <select value={form.customer} onChange={e => setForm(p => ({ ...p, customer: e.target.value }))}
                     style={{ borderColor: form.customer ? 'rgba(0,229,255,0.4)' : 'rgba(255,107,107,0.5)' }}>
                     <option value="">-- เลือก Customer --</option>
-                    {CUSTOMERS.map(c => <option key={c} value={c}>{c}</option>)}
+                    {custList.map(c => <option key={c} value={c}>{c}</option>)}
                   </select>
                 </div>
                 <div className="form-group">

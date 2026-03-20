@@ -1,28 +1,77 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
-import { customerService } from '../../services/customerService';
+import { customerApi } from '../../services/api';
 import './CustomerModule.css';
 
-const initCustomers = [
-  { id: 1, name: 'บริษัท ABC จำกัด',           address: '123 ถ.สุขุมวิท กรุงเทพฯ 10110',         tel: '02-123-4567', taxNo: '0105555000123', contact: 'คุณสมชาย',  email: 'somchai@abc.th',    status: 'active'   },
-  { id: 2, name: 'บริษัท XYZ (Thailand) จำกัด', address: '88 นิคมอุตสาหกรรม อมตะ ชลบุรี 20000', tel: '038-456-789',  taxNo: '0205566000456', contact: 'คุณวิชัย',  email: 'wichai@xyz.th',    status: 'active'   },
-  { id: 3, name: 'ห้างหุ้นส่วน DEF',            address: '45 ถ.เพชรบุรี กรุงเทพฯ 10400',          tel: '02-987-6543', taxNo: '0305577000789', contact: 'คุณสุภาพร', email: 'sup@def.th',       status: 'active'   },
-  { id: 4, name: 'Nayong Hospital',              address: '123 ถ.พัทลุง เมือง ตรัง 92000',          tel: '074-611-001', taxNo: '0107559000123', contact: 'คุณนภา',   email: 'napa@nayong.th',   status: 'active'   },
-  { id: 5, name: 'ThaiBev Co., Ltd.',            address: '14 ถ.วิภาวดีรังสิต กรุงเทพฯ 10900',    tel: '02-785-5555', taxNo: '0107538000456', contact: 'คุณธนา',   email: 'thana@thaibev.th', status: 'active'   },
-  { id: 6, name: 'SCG Logistics Co., Ltd.',      address: '1 ถ.ปูนซิเมนต์ไทย บางซื่อ กรุงเทพฯ',  tel: '02-586-2000', taxNo: '0107521000789', contact: 'คุณปรีชา', email: 'pre@scg.th',       status: 'inactive' },
-];
+// Map API response → local form fields
+const apiToForm = (c) => ({
+  id: c.id,
+  code: c.code || '',
+  name: c.name || '',
+  name_th: c.name_th || '',
+  address: c.address || '',
+  tel: c.phone || '',
+  taxNo: c.tax_id || '',
+  contact: c.contact_person || '',
+  email: c.email || '',
+  logo: c.logo || '',
+  creditDays: c.credit_days ?? 30,
+  company_no: c.company_no || '',
+  status: c.status || 'active',
+});
 
-const emptyForm = { name: '', address: '', tel: '', taxNo: '', contact: '', email: '', status: 'active' };
+// Map local form → API body
+const formToApi = (form, currentUser) => ({
+  code: form.code || `CUST-${Date.now()}`,
+  name: form.name,
+  name_th: form.name_th || form.name,
+  address: form.address,
+  phone: form.tel,
+  tax_id: form.taxNo,
+  contact_person: form.contact,
+  email: form.email,
+  logo: form.logo,
+  credit_days: form.creditDays ?? 30,
+  company_no: form.company_no || currentUser?.companyNo || '',
+  status: form.status,
+});
 
-export default function CustomerModule() {
+const emptyForm = { code: '', name: '', name_th: '', address: '', tel: '', taxNo: '', contact: '', email: '', logo: '', creditDays: 30, company_no: '', status: 'active' };
+
+export default function CustomerModule({ currentUser, initCompanyFilter = '' }) {
+  const isSuperAdmin = currentUser?.role === 'superadmin';
   const { t } = useTranslation();
-  const [customers, setCustomers]     = useState(initCustomers);
+  const [customers, setCustomers] = useState([]);
+  const [filterCompany, setFilterCompany] = useState(initCompanyFilter);
+  const [companies, setCompanies] = useState([]);
+
+  const loadCustomers = useCallback(async () => {
+    try {
+      // SuperAdmin sees all; others filtered by their company
+      const compNo = isSuperAdmin ? undefined : currentUser?.companyNo;
+      const data = await customerApi.list(compNo);
+      if (Array.isArray(data)) setCustomers(data.map(apiToForm));
+    } catch {}
+  }, [isSuperAdmin, currentUser?.companyNo]);
 
   useEffect(() => {
-    customerService.getAll().then(data => {
-      if (Array.isArray(data) && data.length > 0) setCustomers(data);
+    loadCustomers();
+  }, [loadCustomers]);
+
+  // SuperAdmin: load distinct companies for filter dropdown
+  useEffect(() => {
+    if (!isSuperAdmin) return;
+    customerApi.list().then(data => {
+      if (!Array.isArray(data)) return;
+      const seen = new Set();
+      const list = [];
+      data.forEach(c => {
+        const no = c.company_no || '';
+        if (no && !seen.has(no)) { seen.add(no); list.push({ code: no, name: c.name }); }
+      });
+      setCompanies(list);
     }).catch(() => {});
-  }, []);
+  }, [isSuperAdmin]);
   const [search, setSearch]           = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
   const [showModal, setShowModal]     = useState(false);
@@ -30,17 +79,28 @@ export default function CustomerModule() {
   const [form, setForm]               = useState(emptyForm);
   const [formError, setFormError]     = useState('');
   const [deleteId, setDeleteId]       = useState(null);
+  const logoInputRef                  = useRef(null);
 
   const filtered = customers.filter(c =>
     (filterStatus === 'all' || c.status === filterStatus) &&
-    (c.name.includes(search) || c.contact.includes(search) || c.taxNo.includes(search) || c.tel.includes(search))
+    (!filterCompany || c.company_no === filterCompany) &&
+    (c.name.includes(search) || (c.contact || '').includes(search) || (c.taxNo || '').includes(search) || (c.tel || '').includes(search))
   );
+
+  const handleLogoChange = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    if (file.size > 500 * 1024) { setFormError('โลโก้ต้องมีขนาดไม่เกิน 500KB'); return; }
+    const reader = new FileReader();
+    reader.onload = (ev) => setForm(p => ({ ...p, logo: ev.target.result }));
+    reader.readAsDataURL(file);
+  };
 
   const openAdd  = () => { setForm(emptyForm); setEditId(null); setFormError(''); setShowModal(true); };
   const openEdit = (c) => { setForm({ ...c }); setEditId(c.id); setFormError(''); setShowModal(true); };
   const closeModal = () => { setShowModal(false); setEditId(null); setFormError(''); };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!form.name.trim()) { setFormError('กรุณากรอกชื่อลูกค้า'); return; }
     if (form.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) {
       setFormError('รูปแบบ Email ไม่ถูกต้อง'); return;
@@ -48,25 +108,28 @@ export default function CustomerModule() {
     if (form.tel && !/^[\d\-+() ]{6,20}$/.test(form.tel)) {
       setFormError('รูปแบบเบอร์โทรไม่ถูกต้อง (ตัวเลข, -, +, วงเล็บ)'); return;
     }
-    if (editId) {
-      customerService.update(editId, form).catch(() => {});
-      setCustomers(prev => prev.map(c => c.id === editId ? { ...c, ...form } : c));
-    } else {
-      customerService.create(form).then(created => {
-        if (created?.id) setCustomers(prev => prev.map(c => c.id === Date.now() ? { ...c, id: created.id } : c));
-      }).catch(() => {});
-      setCustomers(prev => [...prev, { id: Date.now(), ...form }]);
+    try {
+      const body = formToApi(form, currentUser);
+      if (editId) {
+        await customerApi.update(editId, body);
+      } else {
+        await customerApi.create(body);
+      }
+      await loadCustomers();
+      closeModal();
+    } catch (err) {
+      setFormError(err.message || 'บันทึกไม่สำเร็จ');
     }
-    closeModal();
   };
 
-  const toggleStatus = (id) => {
+  const toggleStatus = async (id) => {
     const cust = customers.find(c => c.id === id);
-    if (cust) {
-      const newStatus = cust.status === 'active' ? 'inactive' : 'active';
-      customerService.update(id, { ...cust, status: newStatus }).catch(() => {});
-    }
-    setCustomers(prev => prev.map(c => c.id === id ? { ...c, status: c.status === 'active' ? 'inactive' : 'active' } : c));
+    if (!cust) return;
+    const newStatus = cust.status === 'active' ? 'inactive' : 'active';
+    try {
+      await customerApi.update(id, { status: newStatus });
+      setCustomers(prev => prev.map(c => c.id === id ? { ...c, status: newStatus } : c));
+    } catch {}
   };
 
   const activeCount   = customers.filter(c => c.status === 'active').length;
@@ -79,12 +142,29 @@ export default function CustomerModule() {
       <div className="module-header">
         <div className="header-left">
           <h1>🏢 {t('customer.title')}</h1>
-          <span className="header-sub">{t('customer.subtitle')}</span>
+          {filterCompany
+            ? <span className="header-sub" style={{ color: '#00CC88' }}>
+                Customer ของ <strong>{filterCompany}</strong>
+                <button onClick={() => setFilterCompany('')}
+                  style={{ marginLeft: 10, fontSize: 11, padding: '2px 8px', background: 'rgba(255,107,107,0.12)', border: '1px solid rgba(255,107,107,0.3)', color: '#FF6B6B', borderRadius: 4, cursor: 'pointer', fontWeight: 600 }}>
+                  ✕ ล้าง Filter
+                </button>
+              </span>
+            : <span className="header-sub">{t('customer.subtitle')}</span>
+          }
         </div>
         <div className="header-right">
           <button className="primary-btn" onClick={openAdd}>➕ {t('customer.addNew')}</button>
         </div>
       </div>
+
+      {/* Context banner for non-SuperAdmin: shows which company they belong to */}
+      {!isSuperAdmin && currentUser?.companyNo && (
+        <div style={{ marginBottom: 12, padding: '8px 16px', borderRadius: 7, background: 'rgba(0,188,212,0.07)', border: '1px solid rgba(0,229,255,0.18)', fontSize: 12, color: '#5a8fa8', display: 'flex', alignItems: 'center', gap: 8 }}>
+          <span style={{ fontSize: 14 }}>🏢</span>
+          <span>แสดง Customer ของบริษัท <strong style={{ color: '#00E5FF' }}>{currentUser.companyNo}</strong> — Customer เหล่านี้จะปรากฏใน Billing "Bill To"</span>
+        </div>
+      )}
 
       {/* Summary */}
       <div className="cust-summary-row">
@@ -120,6 +200,14 @@ export default function CustomerModule() {
           <option value="active">Active</option>
           <option value="inactive">Inactive</option>
         </select>
+        {isSuperAdmin && companies.length > 0 && (
+          <select className="filter-select" value={filterCompany} onChange={e => setFilterCompany(e.target.value)}>
+            <option value="">🏢 ทุก Company</option>
+            {companies.map(co => (
+              <option key={co.code} value={co.code}>{co.code} — {co.name}</option>
+            ))}
+          </select>
+        )}
       </div>
 
       {/* Table */}
@@ -144,8 +232,15 @@ export default function CustomerModule() {
                 <td className="row-num">{i + 1}</td>
                 <td>
                   <div className="cust-name-cell">
-                    <div className="cust-avatar">{c.name.charAt(0)}</div>
-                    <span className="cust-name-txt">{c.name}</span>
+                    {c.logo
+                      ? <img src={c.logo} alt="logo" className="cust-logo-img" />
+                      : <div className="cust-avatar">{c.name.charAt(0)}</div>}
+                    <div>
+                      <span className="cust-name-txt">{c.name}</span>
+                      {isSuperAdmin && c.company_no && (
+                        <span style={{ display: 'block', fontSize: 11, color: '#5a8fa8', marginTop: 2 }}>{c.company_no}</span>
+                      )}
+                    </div>
                   </div>
                 </td>
                 <td>{c.contact || <span className="muted">-</span>}</td>
@@ -180,6 +275,12 @@ export default function CustomerModule() {
               <button className="modal-close" onClick={closeModal}>✕</button>
             </div>
             <div className="modal-body">
+              {!isSuperAdmin && currentUser?.companyNo && (
+                <div style={{ marginBottom: 14, padding: '8px 14px', borderRadius: 7, background: 'rgba(0,188,212,0.08)', border: '1px solid rgba(0,229,255,0.2)', fontSize: 12, color: '#5a8fa8', display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <span style={{ fontSize: 15 }}>🏢</span>
+                  <span>Customer นี้จะอยู่ภายใต้บริษัท <strong style={{ color: '#00E5FF' }}>{currentUser.companyNo}</strong> และจะปรากฏใน Billing "Bill To"</span>
+                </div>
+              )}
               <div className="form-group">
                 <label>{t('customer.nameLabel')}</label>
                 <input type="text" value={form.name}
@@ -220,6 +321,65 @@ export default function CustomerModule() {
                     placeholder="example@company.th" />
                 </div>
               </div>
+              <div className="form-row-2">
+                <div className="form-group">
+                  <label>💳 เครดิต (วัน)</label>
+                  <div className="credit-input-wrap">
+                    <input
+                      type="number" min="0" max="365"
+                      value={form.creditDays ?? 30}
+                      onChange={e => setForm(p => ({ ...p, creditDays: parseInt(e.target.value) || 0 }))}
+                      placeholder="30"
+                    />
+                    <span className="credit-unit">วัน</span>
+                  </div>
+                  <div className="credit-hint">ครบกำหนดชำระหลังออก Invoice</div>
+                </div>
+                <div className="form-group" style={{ justifyContent: 'flex-end' }}>
+                  <div className="credit-preset-label">ตั้งค่าเร็ว</div>
+                  <div className="credit-presets">
+                    {[7, 15, 30, 45, 60, 90].map(d => (
+                      <button key={d} type="button"
+                        className={`credit-preset-btn ${form.creditDays === d ? 'active' : ''}`}
+                        onClick={() => setForm(p => ({ ...p, creditDays: d }))}>
+                        {d}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              {isSuperAdmin && (
+              <div className="form-group">
+                <label>🏢 Company <span style={{ fontSize: 11, color: '#FFD700', marginLeft: 6 }}>👑 Super Admin only</span></label>
+                <select value={form.company_no} onChange={e => setForm(p => ({ ...p, company_no: e.target.value }))}>
+                  <option value="">— ไม่ระบุ —</option>
+                  {companies.map(co => (
+                    <option key={co.code} value={co.code}>{co.code} — {co.name}</option>
+                  ))}
+                </select>
+              </div>
+              )}
+              <div className="form-group">
+                <label>🖼️ โลโก้</label>
+                <div className="logo-upload-row">
+                  {form.logo
+                    ? <img src={form.logo} alt="logo preview" className="logo-preview" />
+                    : <div className="logo-placeholder">🏢</div>}
+                  <div className="logo-upload-actions">
+                    <button type="button" className="upload-logo-btn" onClick={() => logoInputRef.current?.click()}>
+                      📁 เลือกรูปโลโก้
+                    </button>
+                    {form.logo && (
+                      <button type="button" className="remove-logo-btn" onClick={() => setForm(p => ({ ...p, logo: '' }))}>
+                        ✕ ลบโลโก้
+                      </button>
+                    )}
+                    <span className="logo-hint">PNG, JPG ขนาดไม่เกิน 500KB</span>
+                  </div>
+                  <input ref={logoInputRef} type="file" accept="image/png,image/jpeg,image/webp" onChange={handleLogoChange} hidden />
+                </div>
+              </div>
               <div className="form-group">
                 <label>{t('customer.statusLabel')}</label>
                 <select value={form.status} onChange={e => setForm(p => ({ ...p, status: e.target.value }))}>
@@ -253,7 +413,15 @@ export default function CustomerModule() {
             </div>
             <div className="modal-footer">
               <button className="cancel-btn" onClick={() => setDeleteId(null)}>{t('common.cancel')}</button>
-              <button className="danger-btn" onClick={() => { customerService.delete(deleteId).catch(() => {}); setCustomers(prev => prev.filter(c => c.id !== deleteId)); setDeleteId(null); }}>
+              <button className="danger-btn" onClick={async () => {
+                try {
+                  await customerApi.remove(deleteId);
+                  await loadCustomers();
+                } catch (err) {
+                  alert(err.message || 'ลบไม่สำเร็จ');
+                }
+                setDeleteId(null);
+              }}>
                 🗑️ {t('customer.deleteBtn')}
               </button>
             </div>

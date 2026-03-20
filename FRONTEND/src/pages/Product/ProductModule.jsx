@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
+import { customerApi } from '../../services/api';
 import { MAIN_UNIT_GROUPS, SUB_UNIT_GROUPS } from '../../constants/units';
 import * as XLSX from 'xlsx';
 
@@ -7,9 +8,9 @@ const initProducts = [
   { id: 1, sku: 'SKU001', barcode: 'BC001', name: 'Product 1', category: 'Electronics', mainUnit: 'PCS', subUnit: 'BOX', price: 1000, batNumber: 'BAT-001', lotNumber: 'LOT-001', manufactureDate: '2025-01-15', expiryDate: '2027-01-15', weightKg: '', weightG: '', dimW: '', dimL: '', dimH: '' },
 ];
 
-const emptyForm = { sku: '', barcode: '', name: '', category: 'Electronics', mainUnit: 'PCS', subUnit: 'BOX', price: '', batNumber: '', lotNumber: '', manufactureDate: '', expiryDate: '', weightKg: '', weightG: '', dimW: '', dimL: '', dimH: '' };
+const emptyForm = { sku: '', barcode: '', name: '', category: 'Electronics', mainUnit: 'PCS', subUnit: 'BOX', price: '', batNumber: '', lotNumber: '', manufactureDate: '', expiryDate: '', weightKg: '', weightG: '', dimW: '', dimL: '', dimH: '', customer: '' };
 
-function ProductModule() {
+function ProductModule({ currentUser }) {
   const { t, i18n } = useTranslation();
   const [activeTab, setActiveTab] = useState('list');
   const [products, setProducts] = useState(initProducts);
@@ -17,6 +18,16 @@ function ProductModule() {
   const [editId, setEditId] = useState(null);
   const [showModal, setShowModal] = useState(false);
   const [formError, setFormError] = useState('');
+  const [deleteId, setDeleteId] = useState(null);
+  const [custFilter, setCustFilter] = useState('');
+  const [importMsg, setImportMsg] = useState('');
+
+  const [custList, setCustList] = useState([]);
+  useEffect(() => {
+    customerApi.list(currentUser?.companyNo).then(data => {
+      if (Array.isArray(data)) setCustList(data.map(c => c.name).filter(Boolean));
+    }).catch(() => {});
+  }, [currentUser?.companyNo]);
 
   const toggleLanguage = () => {
     const newLang = i18n.language === 'en' ? 'th' : 'en';
@@ -32,6 +43,71 @@ function ProductModule() {
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Product Template');
     XLSX.writeFile(wb, 'template_product.xlsx');
+  };
+
+  // ── Import XLSX ────────────────────────────────────────────────────────────
+  const handleImport = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      try {
+        const wb = XLSX.read(ev.target.result, { type: 'binary' });
+        const ws = wb.Sheets[wb.SheetNames[0]];
+        const rows = XLSX.utils.sheet_to_json(ws, { header: 1 });
+        if (rows.length < 2) { alert('ไม่พบข้อมูลในไฟล์'); return; }
+        const imported = rows.slice(1)
+          .filter(r => r[0] || r[2])   // must have SKU or Name
+          .map((r, i) => ({
+            id: Date.now() + i,
+            sku:             String(r[0]  || '').trim(),
+            barcode:         String(r[1]  || '').trim(),
+            name:            String(r[2]  || '').trim(),
+            category:        String(r[3]  || 'Electronics').trim(),
+            mainUnit:        String(r[4]  || 'PCS').trim(),
+            subUnit:         String(r[5]  || 'BOX').trim(),
+            batNumber:       String(r[6]  || '').trim(),
+            lotNumber:       String(r[7]  || '').trim(),
+            manufactureDate: String(r[8]  || '').trim(),
+            expiryDate:      String(r[9]  || '').trim(),
+            weightKg:        String(r[10] || '').trim(),
+            weightG:         String(r[11] || '').trim(),
+            dimW:            String(r[12] || '').trim(),
+            dimL:            String(r[13] || '').trim(),
+            dimH:            String(r[14] || '').trim(),
+            price:           0,
+            customer:        '',
+          }));
+        if (imported.length === 0) { alert('ไม่พบข้อมูลที่ถูกต้อง (ต้องมี Item Code หรือ Product Name)'); return; }
+        setProducts(prev => [...prev, ...imported]);
+        setImportMsg(`✅ นำเข้า ${imported.length} รายการสำเร็จ`);
+        setTimeout(() => setImportMsg(''), 4000);
+      } catch (err) {
+        alert('เกิดข้อผิดพลาด: ' + err.message);
+      }
+    };
+    reader.readAsBinaryString(file);
+    e.target.value = '';  // reset so same file can be re-imported
+  };
+
+  // ── Export XLSX ────────────────────────────────────────────────────────────
+  const handleExport = () => {
+    if (products.length === 0) { alert('ไม่มีข้อมูลสินค้า'); return; }
+    const headers = ['Item Code','Barcode','Product Name','Category','Main Unit','Sub Unit','Batch Number','Lot Number','MFG','Exp','Weight KG','Weight G','W','L','H','Customer'];
+    const rows = products.map(p => [
+      p.sku, p.barcode, p.name, p.category, p.mainUnit, p.subUnit,
+      p.batNumber, p.lotNumber, p.manufactureDate, p.expiryDate,
+      p.weightKg, p.weightG, p.dimW, p.dimL, p.dimH, p.customer || '',
+    ]);
+    const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
+    // Auto column width
+    const colWidths = headers.map((h, ci) => ({
+      wch: Math.max(h.length, ...rows.map(r => String(r[ci] || '').length)) + 2,
+    }));
+    ws['!cols'] = colWidths;
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Products');
+    XLSX.writeFile(wb, `products_${new Date().toISOString().slice(0,10)}.xlsx`);
   };
   const openEdit = (p) => { setForm({ ...p }); setEditId(p.id); setFormError(''); setShowModal(true); };
   const closeModal = () => { setShowModal(false); setEditId(null); setFormError(''); };
@@ -109,12 +185,20 @@ function ProductModule() {
         {activeTab === 'list' && (
           <div className="product-list">
             <div className="controls">
-              <label className="import-btn">
+              <label className="import-btn" style={{ cursor: 'pointer' }}>
                 📥 {t('product.import')}
-                <input type="file" accept=".xlsx" hidden />
+                <input type="file" accept=".xlsx,.xls" hidden onChange={handleImport} />
               </label>
-              <button className="export-btn">📤 {t('product.export')}</button>
+              <button className="export-btn" onClick={handleExport}>📤 {t('product.export')}</button>
               <button onClick={downloadTemplate} className="export-btn" style={{background:'rgba(0,204,136,0.12)',color:'#00CC88',border:'1px solid rgba(0,204,136,0.3)'}}>📋 Download Template</button>
+              {importMsg && <span style={{ fontSize: 12, color: '#00CC88', fontWeight: 600, marginLeft: 4 }}>{importMsg}</span>}
+              {custList.length > 0 && (
+                <select value={custFilter} onChange={e => setCustFilter(e.target.value)}
+                  style={{ padding:'7px 10px', background:'rgba(0,20,40,0.8)', border:'1px solid rgba(0,229,255,0.3)', borderRadius:6, color: custFilter ? '#cce4ef' : '#5a8fa8', fontSize:12, fontWeight:600, minWidth:140 }}>
+                  <option value="">🏢 Customer (All)</option>
+                  {custList.map(c => <option key={c} value={c}>{c}</option>)}
+                </select>
+              )}
               <button className="create-btn" onClick={openCreate}>➕ {t('product.create')}</button>
             </div>
             <table className="data-table">
@@ -124,6 +208,7 @@ function ProductModule() {
                   <th>{t('product.barcode')}</th>
                   <th>Product Name</th>
                   <th>{t('product.category')}</th>
+                  <th>🏢 Customer</th>
                   <th>Main Unit</th>
                   <th>Sub Unit</th>
                   <th>Batch Number</th>
@@ -139,15 +224,16 @@ function ProductModule() {
                 </tr>
               </thead>
               <tbody>
-                {products.length === 0 && inlineRows.every(r => !r.sku && !r.name) && (
-                  <tr><td colSpan={16} style={{ textAlign: 'center', padding: 28, color: '#3a6a82', fontSize: 13 }}>No products</td></tr>
+                {products.filter(p => !custFilter || p.customer === custFilter).length === 0 && inlineRows.every(r => !r.sku && !r.name) && (
+                  <tr><td colSpan={17} style={{ textAlign: 'center', padding: 28, color: '#3a6a82', fontSize: 13 }}>No products</td></tr>
                 )}
-                {products.map(p => (
+                {products.filter(p => !custFilter || p.customer === custFilter).map(p => (
                   <tr key={p.id}>
                     <td style={{ fontFamily: 'monospace', color: '#a0c8dc' }}>{p.sku}</td>
                     <td style={{ fontFamily: 'monospace', fontSize: 12 }}>{p.barcode || '-'}</td>
                     <td style={{ fontWeight: 600, color: '#cce4ef' }}>{p.name}</td>
                     <td style={{ fontSize: 12, color: '#7a9fb5' }}>{p.category}</td>
+                    <td style={{ fontSize: 12, color: '#a0c8dc' }}>{p.customer || <span style={{ color: '#3a6a82' }}>-</span>}</td>
                     <td><span style={{ background: 'rgba(0,188,212,0.1)', color: '#00E5FF', padding: '2px 8px', borderRadius: 4, fontSize: 11, fontWeight: 700 }}>{p.mainUnit || '-'}</span></td>
                     <td><span style={{ background: 'rgba(0,204,136,0.1)', color: '#00CC88', padding: '2px 8px', borderRadius: 4, fontSize: 11, fontWeight: 700 }}>{p.subUnit || '-'}</span></td>
                     <td style={{ fontFamily: 'monospace', fontSize: 12, color: '#00E5FF' }}>{p.batNumber || '-'}</td>
@@ -161,6 +247,7 @@ function ProductModule() {
                     <td style={{ fontSize: 12, color: '#a0c8dc', textAlign: 'center' }}>{p.dimH || '-'}</td>
                     <td>
                       <button className="action-btn edit" onClick={() => openEdit(p)}>✏️</button>
+                      <button className="action-btn delete" onClick={() => setDeleteId(p.id)} style={{ marginLeft: 4, background: 'rgba(255,100,100,0.08)', border: '1px solid rgba(255,100,100,0.2)', borderRadius: 4, padding: '5px 9px', fontSize: 13, cursor: 'pointer' }}>🗑️</button>
                     </td>
                   </tr>
                 ))}
@@ -210,6 +297,31 @@ function ProductModule() {
         )}
       </div>
 
+      {/* Delete Confirm Modal */}
+      {deleteId && (
+        <div className="rcv-modal-overlay" onClick={() => setDeleteId(null)}>
+          <div className="rcv-modal-box" style={{ maxWidth: 380 }} onClick={e => e.stopPropagation()}>
+            <div className="rcv-modal-header">
+              <h2>🗑️ ยืนยันการลบ</h2>
+              <button className="rcv-modal-close" onClick={() => setDeleteId(null)}>✕</button>
+            </div>
+            <div className="rcv-modal-body">
+              <p style={{ color: '#b0cdd8', fontSize: 14, margin: 0 }}>
+                ต้องการลบสินค้า <strong style={{ color: '#FF6B6B' }}>{products.find(p => p.id === deleteId)?.name}</strong> ใช่หรือไม่?<br />
+                <span style={{ color: '#5a8fa8', fontSize: 12 }}>การดำเนินการนี้ไม่สามารถย้อนกลับได้</span>
+              </p>
+            </div>
+            <div className="rcv-modal-footer">
+              <button className="rcv-cancel-btn" onClick={() => setDeleteId(null)}>ยกเลิก</button>
+              <button className="rcv-save-btn" style={{ background: 'rgba(255,100,100,0.15)', border: '1px solid rgba(255,100,100,0.35)', color: '#FF6B6B' }}
+                onClick={() => { setProducts(prev => prev.filter(p => p.id !== deleteId)); setDeleteId(null); }}>
+                🗑️ ลบ
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Add / Edit Modal */}
       {showModal && (
         <div className="rcv-modal-overlay" onClick={closeModal}>
@@ -251,6 +363,16 @@ function ProductModule() {
                   <input type="number" min="0" value={form.price} onChange={e => setForm(p => ({ ...p, price: e.target.value }))} placeholder="0" />
                 </div>
               </div>
+              {custList.length > 0 && (
+              <div className="rcv-form-group">
+                <label>🏢 Customer</label>
+                <select value={form.customer} onChange={e => setForm(p => ({ ...p, customer: e.target.value }))}
+                  style={{ padding: '9px 12px', background: 'rgba(0,20,40,0.8)', border: '1px solid rgba(0,188,212,0.4)', borderRadius: 6, fontSize: 13, color: '#ffffff', fontFamily: 'inherit', fontWeight: 600 }}>
+                  <option value="">-- ไม่ระบุ --</option>
+                  {custList.map(c => <option key={c} value={c}>{c}</option>)}
+                </select>
+              </div>
+              )}
               <div style={{ background: 'rgba(0,188,212,0.05)', border: '1px solid rgba(0,188,212,0.1)', borderRadius: 8, padding: '14px', marginBottom: 14 }}>
                 <div style={{ fontSize: 11, fontWeight: 700, color: '#5a8fa8', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 12 }}>BAT / LOT / MFG Date / Expiry Date</div>
                 <div className="rcv-form-row2" style={{ marginBottom: 12 }}>

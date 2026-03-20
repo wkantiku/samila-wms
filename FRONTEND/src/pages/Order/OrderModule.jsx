@@ -1,5 +1,7 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import { orderService } from '../../services/orderService';
+import { customerApi } from '../../services/api';
+import * as XLSX from 'xlsx';
 import './OrderModule.css';
 
 const ORDER_STATUSES = ['Draft', 'Confirmed', 'Picking', 'Shipped', 'Cancelled'];
@@ -31,14 +33,22 @@ const emptyOrderForm = () => ({
   remark:    '',
 });
 
-export default function OrderModule({ orders, setOrders, inventory }) {
+export default function OrderModule({ orders, setOrders, inventory, currentUser }) {
   useEffect(() => {
     orderService.getAll().then(data => {
       if (Array.isArray(data) && data.length > 0) setOrders(data);
     }).catch(() => {});
   }, []);
 
+  const [custList, setCustList] = useState([]);
+  useEffect(() => {
+    customerApi.list(currentUser?.companyNo).then(data => {
+      if (Array.isArray(data)) setCustList(data.map(c => c.name).filter(Boolean));
+    }).catch(() => {});
+  }, [currentUser?.companyNo]);
+
   const [activeTab, setActiveTab] = useState('list');
+  const importRef = useRef();
 
   // Create-order form state
   const [form, setForm]         = useState(emptyOrderForm);
@@ -51,8 +61,9 @@ export default function OrderModule({ orders, setOrders, inventory }) {
   const [orderError, setOrderError] = useState('');
 
   /* ── Derived ── */
-  const customers = useMemo(() =>
-    [...new Set(inventory.map(i => i.customer).filter(Boolean))].sort(), [inventory]);
+  const customers = custList.length > 0
+    ? custList
+    : [...new Set(inventory.map(i => i.customer).filter(Boolean))].sort();
 
   const filteredInv = useMemo(() => {
     const base = form.customer
@@ -148,31 +159,106 @@ export default function OrderModule({ orders, setOrders, inventory }) {
     setActiveTab('create');
   };
 
+  /* ── Import Orders from XLSX ── */
+  const handleImport = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      try {
+        const wb = XLSX.read(ev.target.result, { type: 'binary' });
+        const ws = wb.Sheets[wb.SheetNames[0]];
+        const rows = XLSX.utils.sheet_to_json(ws, { header: 1 });
+        if (rows.length < 2) { alert('ไม่พบข้อมูลในไฟล์'); return; }
+        // Columns: [0]Order No, [1]Order Date, [2]Customer, [3]S.O, [4]Remark,
+        //          [5]SKU, [6]Barcode, [7]Product Name, [8]Location,
+        //          [9]Order Qty, [10]Main Unit, [11]Sub Unit,
+        //          [12]BAT No, [13]Lot No, [14]MFG Date, [15]Expiry Date
+        const dataRows = rows.slice(1).filter(r => r[2]); // must have Customer
+        // Group by Order No.
+        const orderMap = {};
+        dataRows.forEach((r, i) => {
+          const orderNo = String(r[0] || '').trim() || genOrderNo();
+          if (!orderMap[orderNo]) {
+            orderMap[orderNo] = {
+              id:        Date.now() + i,
+              orderNo,
+              orderDate: String(r[1] || today()).trim(),
+              customer:  String(r[2] || '').trim(),
+              reference: String(r[3] || '').trim(),
+              remark:    String(r[4] || '').trim(),
+              status:    'Draft',
+              lines:     [],
+              createdAt: new Date().toLocaleString('th-TH'),
+            };
+          }
+          const sku = String(r[5] || '').trim();
+          if (sku) {
+            orderMap[orderNo].lines.push({
+              invId:           Date.now() + i,
+              sku,
+              barcode:         String(r[6] || '').trim(),
+              product:         String(r[7] || '').trim(),
+              location:        String(r[8] || '').trim(),
+              orderQty:        Number(r[9]) || 1,
+              mainUnit:        String(r[10] || 'PCS').trim(),
+              subUnit:         String(r[11] || 'BOX').trim(),
+              batNumber:       String(r[12] || '').trim(),
+              lotNumber:       String(r[13] || '').trim(),
+              manufactureDate: String(r[14] || '').trim(),
+              expiryDate:      String(r[15] || '').trim(),
+              available:       0,
+            });
+          }
+        });
+        const imported = Object.values(orderMap);
+        if (!imported.length) { alert('ไม่พบข้อมูล Order ที่ถูกต้อง (ต้องมี Customer)'); return; }
+        setOrders(prev => [...imported, ...prev]);
+        alert(`นำเข้าสำเร็จ ${imported.length} Order`);
+      } catch (err) {
+        alert('เกิดข้อผิดพลาดในการอ่านไฟล์: ' + err.message);
+      }
+    };
+    reader.readAsBinaryString(file);
+    e.target.value = '';
+  };
+
+  /* ── Export Orders ── */
+  const handleExport = () => {
+    const rows = orders.map(o => ({
+      'Order No.':  o.orderNo,
+      'Order Date': o.orderDate,
+      'Customer':   o.customer,
+      'S.O':        o.reference || '',
+      'Remark':     o.remark || '',
+      'Status':     o.status,
+      'Items':      o.lines.length,
+      'Created':    o.createdAt || '',
+    }));
+    const ws = XLSX.utils.json_to_sheet(rows);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Orders');
+    XLSX.writeFile(wb, `orders_export_${today()}.xlsx`);
+  };
+
   /* ── Download Template ── */
   const downloadTemplate = () => {
     const headers = [
-      'Order No.', 'Order Date', 'Customer', 'Reference', 'Remark',
+      'Order No.', 'Order Date', 'Customer', 'S.O', 'Remark',
       'Item Code (SKU)', 'Barcode', 'Product Name', 'Location',
       'Order Qty', 'Main Unit', 'Sub Unit',
       'BAT No.', 'Lot No.', 'MFG Date', 'Expiry Date',
     ];
     const example = [
-      genOrderNo(), today(), 'Customer A', 'PO-2026-0001', 'หมายเหตุ',
+      genOrderNo(), today(), 'Customer A', 'SO-2026-0001', 'หมายเหตุ',
       'SKU001', 'BC001', 'Product Name', 'A-01-1-A',
       '10', 'PCS', 'BOX',
       'BAT-001', 'LOT-001', '2025-01-15', '2027-01-15',
     ];
-    const csvContent = [headers, example]
-      .map(row => row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(','))
-      .join('\n');
-    const bom = '\uFEFF'; // UTF-8 BOM for Excel Thai support
-    const blob = new Blob([bom + csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `Order_Template_${today()}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
+    const ws = XLSX.utils.aoa_to_sheet([headers, example]);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Order Template');
+    XLSX.writeFile(wb, `Order_Template_${today()}.xlsx`);
   };
 
   /* ══════════════════════════ RENDER ══════════════════════════ */
@@ -184,6 +270,11 @@ export default function OrderModule({ orders, setOrders, inventory }) {
           <p>สร้างและจัดการคำสั่งซื้อจาก Inventory</p>
         </div>
         <div className="header-right">
+          <label style={{ background:'rgba(0,204,136,0.12)', color:'#00CC88', border:'1px solid rgba(0,204,136,0.3)', borderRadius:6, padding:'7px 16px', fontSize:13, cursor:'pointer', fontWeight:700 }}>
+            📥 Import XLSX
+            <input ref={importRef} type="file" accept=".xlsx,.xls" onChange={handleImport} hidden />
+          </label>
+          <button className="export-btn" onClick={handleExport} style={{ background:'rgba(0,188,212,0.12)', color:'#00E5FF', border:'1px solid rgba(0,188,212,0.3)', borderRadius:6, padding:'7px 16px', fontSize:13, cursor:'pointer', fontWeight:700 }}>📤 Export XLSX</button>
           <button className="template-btn" onClick={downloadTemplate}>⬇️ Download Template</button>
         </div>
       </div>
@@ -233,7 +324,7 @@ export default function OrderModule({ orders, setOrders, inventory }) {
                     <th>Order No.</th>
                     <th>วันที่</th>
                     <th>Customer</th>
-                    <th>Reference</th>
+                    <th>S.O</th>
                     <th>Items</th>
                     <th>Status</th>
                     <th>Actions</th>
@@ -299,8 +390,8 @@ export default function OrderModule({ orders, setOrders, inventory }) {
                   </select>
                 </div>
                 <div className="form-group">
-                  <label>Reference</label>
-                  <input type="text" placeholder="เลขอ้างอิง / PO No." value={form.reference}
+                  <label>S.O</label>
+                  <input type="text" placeholder="Sales Order No." value={form.reference}
                     onChange={e => setForm(p => ({ ...p, reference: e.target.value }))} />
                 </div>
                 <div className="form-group" style={{ gridColumn: '1 / -1' }}>
@@ -489,7 +580,7 @@ export default function OrderModule({ orders, setOrders, inventory }) {
                 {[
                   ['Customer',  viewOrder.customer],
                   ['Order Date', viewOrder.orderDate],
-                  ['Reference', viewOrder.reference || '-'],
+                  ['S.O', viewOrder.reference || '-'],
                   ['Status',    viewOrder.status],
                   ['Created',   viewOrder.createdAt],
                   ['Remark',    viewOrder.remark || '-'],

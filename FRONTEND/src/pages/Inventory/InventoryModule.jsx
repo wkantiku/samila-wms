@@ -1,12 +1,13 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { SUB_UNIT_GROUPS, MAIN_UNIT_GROUPS } from '../../constants/units';
 import { ZONE_OPTIONS, locationToZone } from '../../constants/zones';
 import * as XLSX from 'xlsx';
 import { inventoryService } from '../../services/inventoryService';
+import { customerApi } from '../../services/api';
 import './InventoryModule.css';
 
-function InventoryModule({ inventory, setInventory }) {
+function InventoryModule({ inventory, setInventory, currentUser }) {
   const { t, i18n } = useTranslation();
   const [activeTab, setActiveTab] = useState('list');
 
@@ -15,8 +16,17 @@ function InventoryModule({ inventory, setInventory }) {
       if (Array.isArray(data) && data.length > 0) setInventory(data);
     }).catch(() => {});
   }, []);
+
+  const [custList, setCustList] = useState([]);
+  useEffect(() => {
+    customerApi.list(currentUser?.companyNo).then(data => {
+      if (Array.isArray(data)) setCustList(data.map(c => c.name).filter(Boolean));
+    }).catch(() => {});
+  }, [currentUser?.companyNo]);
+
   const [zoneFilter, setZoneFilter] = useState('');
   const [customerFilter, setCustomerFilter] = useState('');
+  const [skuSearch, setSkuSearch] = useState('');
   const [importStatus, setImportStatus] = useState(null);
   const [importResult, setImportResult] = useState(null);
   const [importPreview, setImportPreview] = useState([]);
@@ -27,6 +37,7 @@ function InventoryModule({ inventory, setInventory }) {
   const [scanSku, setScanSku] = useState('');
   const [scanQty, setScanQty] = useState('');
   const [scanNotify, setScanNotify] = useState(null);
+  const [scanResult, setScanResult] = useState(null);
 
   const showAdjustNotify = (msg, type = 'success') => {
     setAdjustNotify({ msg, type });
@@ -35,7 +46,7 @@ function InventoryModule({ inventory, setInventory }) {
 
   const handleExport = () => {
     const rows = inventory.map(item => ({
-      'Item Code': item.sku, 'Barcode': item.barcode || '', 'Product Name': item.product,
+      'Item Code': item.sku, 'Barcode': item.barcode || '',
       'Description': item.description || '', 'Customer': item.customer || '',
       'Warehouse': item.warehouse, 'Location': item.location,
       'Quantity': item.quantity, 'Available': item.available, 'Min. Stock': item.minStock ?? '',
@@ -77,12 +88,14 @@ function InventoryModule({ inventory, setInventory }) {
   };
 
   const handleScan = () => {
-    if (!scanSku.trim()) { setScanNotify({ msg: 'กรุณากรอก SKU', type: 'error' }); return; }
+    if (!scanSku.trim()) { setScanNotify({ msg: 'กรุณา Scan Barcode หรือ กรอก Item Code', type: 'error' }); return; }
     const match = inventory.find(i => i.sku === scanSku.trim() || i.barcode === scanSku.trim());
     if (!match) {
-      setScanNotify({ msg: `ไม่พบ SKU: ${scanSku}`, type: 'error' });
+      setScanNotify({ msg: `ไม่พบ: ${scanSku}`, type: 'error' });
+      setScanResult(null);
     } else {
-      setScanNotify({ msg: `พบ: ${match.product} — Qty: ${match.quantity} ${match.mainUnit || ''}`, type: 'success' });
+      setScanNotify({ msg: `พบ Item Code: ${match.sku} — Qty: ${match.quantity} ${match.mainUnit || ''}`, type: 'success' });
+      setScanResult(match);
       if (scanQty) {
         setInventory(prev => prev.map(i => i.id === match.id ? { ...i, quantity: Number(scanQty), available: Number(scanQty) } : i));
       }
@@ -99,24 +112,52 @@ function InventoryModule({ inventory, setInventory }) {
   const handleFileSelect = (e) => {
     const file = e.target.files[0];
     if (!file) return;
-    setImportStatus('preview');
-    setImportPreview([
-      { sku: 'SKU002', barcode: 'BC002', product: 'Product 2', description: 'General Goods',  customer: 'Customer A', warehouse: 'Warehouse A', location: 'A-02-1-A', quantity: 300, available: 250, minStock: 50,  mainUnit: 'PCS', subUnit: 'BOX',    batNumber: 'BAT-002', lotNumber: 'LOT-002', manufactureDate: '2025-02-01', expiryDate: '2027-02-01', status: 'GOOD' },
-      { sku: 'SKU003', barcode: 'BC003', product: 'Product 3', description: 'Food & Beverage', customer: 'Customer B', warehouse: 'Warehouse B', location: 'B-01-1-A', quantity: 150, available: 150, minStock: 80,  mainUnit: 'KG',  subUnit: 'BAG',    batNumber: 'BAT-003', lotNumber: 'LOT-003', manufactureDate: '2025-03-01', expiryDate: '2027-03-01', status: 'GOOD' },
-      { sku: 'SKU004', barcode: 'BC004', product: 'Product 4', description: 'Chemical',        customer: 'Customer B', warehouse: 'Warehouse A', location: 'A-03-2-B', quantity: 80,  available: 60,  minStock: 100, mainUnit: 'BTL', subUnit: 'CARTON', batNumber: 'BAT-004', lotNumber: 'LOT-004', manufactureDate: '2025-04-01', expiryDate: '2026-04-01', status: 'LOW'  },
-    ]);
-    setImportResult({ filename: file.name, size: (file.size / 1024).toFixed(1) });
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      try {
+        const wb = XLSX.read(ev.target.result, { type: 'binary' });
+        const ws = wb.Sheets[wb.SheetNames[0]];
+        const rows = XLSX.utils.sheet_to_json(ws, { header: 1 });
+        if (rows.length < 2) { alert('ไม่พบข้อมูลในไฟล์'); return; }
+        const preview = rows.slice(1)
+          .filter(r => r[0])  // ต้องมี Item Code
+          .map(r => ({
+            sku:             String(r[0]  || '').trim(),
+            barcode:         String(r[1]  || '').trim(),
+            description:     String(r[2]  || '').trim(),
+            customer:        String(r[3]  || '').trim(),
+            warehouse:       String(r[4]  || '').trim(),
+            location:        String(r[5]  || '').trim(),
+            quantity:        Number(r[6])  || 0,
+            available:       Number(r[7])  || 0,
+            minStock:        r[8] !== undefined ? Number(r[8]) : null,
+            mainUnit:        String(r[9]  || 'PCS').trim(),
+            subUnit:         String(r[10] || 'BOX').trim(),
+            batNumber:       String(r[11] || '').trim(),
+            lotNumber:       String(r[12] || '').trim(),
+            manufactureDate: String(r[13] || '').trim(),
+            expiryDate:      String(r[14] || '').trim(),
+            status:          String(r[15] || 'GOOD').trim(),
+          }));
+        if (preview.length === 0) { alert('ไม่พบข้อมูลที่ถูกต้อง'); return; }
+        setImportPreview(preview);
+        setImportStatus('preview');
+        setImportResult({ filename: file.name, size: (file.size / 1024).toFixed(1) });
+      } catch (err) {
+        alert('เกิดข้อผิดพลาดในการอ่านไฟล์: ' + err.message);
+      }
+    };
+    reader.readAsBinaryString(file);
+    if (fileRef.current) fileRef.current.value = '';
   };
 
-  const handleImportConfirm = async () => {
+  const handleImportConfirm = () => {
     setImportStatus('loading');
-    setTimeout(() => {
-      const newRows = importPreview.map((row, i) => ({ ...row, id: inventory.length + i + 1 }));
-      setInventory(prev => [...prev, ...newRows]);
-      setImportStatus('success');
-      setImportResult(prev => ({ ...prev, count: newRows.length }));
-      setImportPreview([]);
-    }, 1200);
+    const newRows = importPreview.map((row, i) => ({ ...row, id: Date.now() + i }));
+    setInventory(prev => [...prev, ...newRows]);
+    setImportStatus('success');
+    setImportResult(prev => ({ ...prev, count: newRows.length }));
+    setImportPreview([]);
   };
 
   const handleImportReset = () => {
@@ -127,8 +168,8 @@ function InventoryModule({ inventory, setInventory }) {
   };
 
   const handleDownloadTemplate = () => {
-    const headers = ['Item Code','Barcode','Product Name','Description','Customer','Warehouse','Location','Quantity','Available','Min. Stock','Main Unit','Sub Unit','BAT No.','Lot No.','MFG','Expiry','Status'];
-    const example = ['SKU001','BC001','Product 1','Medical Supply','Customer A','Warehouse A','A-01-1-A','500','400','100','PCS','BOX','BAT-001','LOT-001','2025-01-15','2027-01-15','GOOD'];
+    const headers = ['Item Code','Barcode','Description','Customer','Warehouse','Location','Quantity','Available','Min. Stock','Main Unit','Sub Unit','BAT No.','Lot No.','MFG','Expiry','Status'];
+    const example = ['SKU001','BC001','Medical Supply','Customer A','Warehouse A','A-01-1-A','500','400','100','PCS','BOX','BAT-001','LOT-001','2025-01-15','2027-01-15','GOOD'];
     const ws = XLSX.utils.aoa_to_sheet([headers, example]);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Inventory Template');
@@ -176,12 +217,14 @@ function InventoryModule({ inventory, setInventory }) {
               <select value={zoneFilter} onChange={e => setZoneFilter(e.target.value)} style={{ padding:'7px 10px', background:'rgba(0,20,40,0.8)', border:'1px solid rgba(0,229,255,0.3)', borderRadius:6, color:'#00E5FF', fontSize:12, fontWeight:600 }}>
                 {ZONE_OPTIONS.map(z => <option key={z.id} value={z.id}>{z.label}</option>)}
               </select>
-              <input type="search" placeholder={t('inventory.sku')} />
-              <input type="search" placeholder={t('inventory.product')} />
+              <input type="search" placeholder={t('inventory.sku')} value={skuSearch} onChange={e => setSkuSearch(e.target.value)} />
               <select value={customerFilter} onChange={e => setCustomerFilter(e.target.value)}
                 style={{ padding:'7px 10px', background:'rgba(0,20,40,0.8)', border:'1px solid rgba(0,229,255,0.3)', borderRadius:6, color: customerFilter ? '#cce4ef' : '#5a8fa8', fontSize:12, fontWeight:600, minWidth:140 }}>
                 <option value="">🏢 Customer (All)</option>
-                {[...new Set(inventory.map(i => i.customer).filter(Boolean))].sort().map(c => (
+                {(custList.length > 0
+                  ? custList
+                  : [...new Set(inventory.map(i => i.customer).filter(Boolean))].sort()
+                ).map(c => (
                   <option key={c} value={c}>{c}</option>
                 ))}
               </select>
@@ -193,7 +236,6 @@ function InventoryModule({ inventory, setInventory }) {
                 <tr>
                   <th>Item Code</th>
                   <th>Barcode</th>
-                  <th>Product Name</th>
                   <th>Description</th>
                   <th>Customer</th>
                   <th>{t('inventory.warehouse')}</th>
@@ -214,11 +256,11 @@ function InventoryModule({ inventory, setInventory }) {
                 {inventory
                   .filter(i => !zoneFilter || locationToZone(i.location) === zoneFilter)
                   .filter(i => !customerFilter || i.customer === customerFilter)
+                  .filter(i => !skuSearch || i.sku.toLowerCase().includes(skuSearch.toLowerCase()) || (i.barcode||'').toLowerCase().includes(skuSearch.toLowerCase()))
                   .map(item => (
                   <tr key={item.id}>
                     <td style={{ fontFamily: 'monospace', color: '#a0c8dc', fontWeight: 700 }}>{item.sku}</td>
                     <td style={{ fontFamily: 'monospace', fontSize: 12 }}>{item.barcode || '-'}</td>
-                    <td style={{ fontWeight: 600, color: '#cce4ef' }}>{item.product}</td>
                     <td style={{ fontSize: 12, color: '#7a9fb5' }}>{item.description || '-'}</td>
                     <td style={{ color: '#a0c8dc', fontWeight: 600 }}>{item.customer || '-'}</td>
                     <td>{item.warehouse}</td>
@@ -236,7 +278,7 @@ function InventoryModule({ inventory, setInventory }) {
                   </tr>
                 ))}
                 {inventory.length === 0 && (
-                  <tr><td colSpan={17} style={{ textAlign: 'center', padding: 28, color: '#3a6a82', fontSize: 13 }}>{t('inventory.noItems')}</td></tr>
+                  <tr><td colSpan={16} style={{ textAlign: 'center', padding: 28, color: '#3a6a82', fontSize: 13 }}>{t('inventory.noItems')}</td></tr>
                 )}
               </tbody>
             </table>
@@ -286,21 +328,20 @@ function InventoryModule({ inventory, setInventory }) {
                     <tbody>
                       <tr><td>A</td><td>Item Code</td><td>SKU001</td><td className="req">✓</td></tr>
                       <tr><td>B</td><td>Barcode</td><td>BC001</td><td></td></tr>
-                      <tr><td>C</td><td>Product Name</td><td>Product 1</td><td className="req">✓</td></tr>
-                      <tr><td>D</td><td>Description</td><td>Medical Supply</td><td></td></tr>
-                      <tr><td>E</td><td>Customer</td><td>Customer A</td><td className="req">✓</td></tr>
-                      <tr><td>F</td><td>Warehouse</td><td>Warehouse A</td><td className="req">✓</td></tr>
-                      <tr><td>G</td><td>Location</td><td>A-01-1-A</td><td className="req">✓</td></tr>
-                      <tr><td>H</td><td>Quantity</td><td>500</td><td className="req">✓</td></tr>
-                      <tr><td>I</td><td>Available</td><td>400</td><td></td></tr>
-                      <tr><td>J</td><td>Min. Stock</td><td>100</td><td></td></tr>
-                      <tr><td>K</td><td>Main Unit</td><td>PCS</td><td></td></tr>
-                      <tr><td>L</td><td>Sub Unit</td><td>BOX</td><td></td></tr>
-                      <tr><td>M</td><td>BAT No.</td><td>BAT-001</td><td></td></tr>
-                      <tr><td>N</td><td>Lot No.</td><td>LOT-001</td><td></td></tr>
-                      <tr><td>O</td><td>MFG</td><td>2025-01-15</td><td></td></tr>
-                      <tr><td>P</td><td>Expiry</td><td>2027-01-15</td><td></td></tr>
-                      <tr><td>Q</td><td>Status</td><td>GOOD</td><td></td></tr>
+                      <tr><td>C</td><td>Description</td><td>Medical Supply</td><td></td></tr>
+                      <tr><td>D</td><td>Customer</td><td>Customer A</td><td className="req">✓</td></tr>
+                      <tr><td>E</td><td>Warehouse</td><td>Warehouse A</td><td className="req">✓</td></tr>
+                      <tr><td>F</td><td>Location</td><td>A-01-1-A</td><td className="req">✓</td></tr>
+                      <tr><td>G</td><td>Quantity</td><td>500</td><td className="req">✓</td></tr>
+                      <tr><td>H</td><td>Available</td><td>400</td><td></td></tr>
+                      <tr><td>I</td><td>Min. Stock</td><td>100</td><td></td></tr>
+                      <tr><td>J</td><td>Main Unit</td><td>PCS</td><td></td></tr>
+                      <tr><td>K</td><td>Sub Unit</td><td>BOX</td><td></td></tr>
+                      <tr><td>L</td><td>BAT No.</td><td>BAT-001</td><td></td></tr>
+                      <tr><td>M</td><td>Lot No.</td><td>LOT-001</td><td></td></tr>
+                      <tr><td>N</td><td>MFG</td><td>2025-01-15</td><td></td></tr>
+                      <tr><td>O</td><td>Expiry</td><td>2027-01-15</td><td></td></tr>
+                      <tr><td>P</td><td>Status</td><td>GOOD</td><td></td></tr>
                     </tbody>
                   </table>
                 </div>
@@ -327,7 +368,7 @@ function InventoryModule({ inventory, setInventory }) {
                     <thead>
                       <tr>
                         <th>#</th>
-                        <th>Item Code</th><th>Barcode</th><th>Product Name</th><th>Description</th><th>Customer</th>
+                        <th>Item Code</th><th>Barcode</th><th>Description</th><th>Customer</th>
                         <th>{t('inventory.warehouse')}</th><th>{t('inventory.location')}</th>
                         <th>{t('inventory.quantity')}</th><th>{t('inventory.available')}</th><th>Min. Stock</th>
                         <th>Main Unit</th><th>Sub Unit</th><th>BAT No.</th><th>Lot No.</th><th>MFG</th><th>Expiry</th>
@@ -340,7 +381,6 @@ function InventoryModule({ inventory, setInventory }) {
                           <td className="row-num">{i + 1}</td>
                           <td style={{ fontFamily: 'monospace', color: '#a0c8dc' }}>{row.sku}</td>
                           <td style={{ fontFamily: 'monospace', fontSize: 12 }}>{row.barcode || '-'}</td>
-                          <td style={{ fontWeight: 600 }}>{row.product}</td>
                           <td style={{ fontSize: 12, color: '#7a9fb5' }}>{row.description || '-'}</td>
                           <td>{row.customer || '-'}</td><td>{row.warehouse}</td>
                           <td>{row.location}</td><td>{row.quantity}</td><td>{row.available}</td>
@@ -453,12 +493,24 @@ function InventoryModule({ inventory, setInventory }) {
                   {scanNotify.msg}
                 </div>
               )}
-              <input type="text" placeholder={t('inventory.sku')} className="scan-input"
+              <input type="text" placeholder="Scan Barcode หรือ กรอก Item Code" className="scan-input"
                 value={scanSku} onChange={e => setScanSku(e.target.value)}
-                onKeyDown={e => e.key === 'Enter' && handleScan()} />
+                onKeyDown={e => e.key === 'Enter' && handleScan()} autoFocus />
               <input type="number" placeholder={t('inventory.quantity')} className="quantity-input"
                 value={scanQty} onChange={e => setScanQty(e.target.value)} />
               <button className="scan-btn" onClick={handleScan}>📱 {t('buttons.scan')}</button>
+              {scanResult && (
+                <div style={{ marginTop: 16, padding: '12px 16px', borderRadius: 8, background: 'rgba(0,20,40,0.8)', border: '1px solid rgba(0,229,255,0.25)', fontSize: 13 }}>
+                  <div style={{ display: 'flex', gap: 24, flexWrap: 'wrap', alignItems: 'center' }}>
+                    <div><span style={{ color: '#5a8fa8', marginRight: 6 }}>Item Code:</span><span style={{ color: '#00E5FF', fontWeight: 700, fontFamily: 'monospace' }}>{scanResult.sku}</span></div>
+                    <div><span style={{ color: '#5a8fa8', marginRight: 6 }}>Barcode:</span><span style={{ color: '#cce4ef', fontFamily: 'monospace' }}>{scanResult.barcode || '-'}</span></div>
+                    <div><span style={{ color: '#5a8fa8', marginRight: 6 }}>Description:</span><span style={{ color: '#cce4ef' }}>{scanResult.description || '-'}</span></div>
+                    <div><span style={{ color: '#5a8fa8', marginRight: 6 }}>Customer:</span><span style={{ color: '#a0c8dc' }}>{scanResult.customer || '-'}</span></div>
+                    <div><span style={{ color: '#5a8fa8', marginRight: 6 }}>Location:</span><span style={{ color: '#cce4ef' }}>{scanResult.location}</span></div>
+                    <div><span style={{ color: '#5a8fa8', marginRight: 6 }}>Qty:</span><span style={{ color: '#00CC88', fontWeight: 700 }}>{scanResult.quantity} {scanResult.mainUnit || ''}</span></div>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         )}

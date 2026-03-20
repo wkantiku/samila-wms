@@ -19,10 +19,10 @@ def seed():
         _seed_customers(db)
         _seed_products(db)
         db.commit()
-        print("✅ Seed data complete")
+        print("Seed data complete")
     except Exception as e:
         db.rollback()
-        print(f"⚠️  Seed warning: {e}")
+        print(f"Seed warning: {e}")
     finally:
         db.close()
 
@@ -64,7 +64,7 @@ def _seed_users(db):
     ]
     db.add_all(users)
     db.flush()
-    print(f"  → {len(users)} users seeded")
+    print(f"  -> {len(users)} users seeded")
 
 
 def _seed_warehouses(db):
@@ -92,7 +92,7 @@ def _seed_warehouses(db):
                         )
                         db.add(loc)
     db.flush()
-    print(f"  → {len(warehouses)} warehouses seeded")
+    print(f"  -> {len(warehouses)} warehouses seeded")
 
 
 def _seed_customers(db):
@@ -106,7 +106,7 @@ def _seed_customers(db):
     ]
     db.add_all(customers)
     db.flush()
-    print(f"  → {len(customers)} customers seeded")
+    print(f"  -> {len(customers)} customers seeded")
 
 
 def _seed_products(db):
@@ -121,7 +121,7 @@ def _seed_products(db):
     ]
     db.add_all(products)
     db.flush()
-    print(f"  → {len(products)} products seeded")
+    print(f"  -> {len(products)} products seeded")
 
 
 if __name__ == "__main__":

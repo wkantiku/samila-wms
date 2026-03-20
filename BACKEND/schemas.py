@@ -35,6 +35,7 @@ class UserCreate(_Base):
     warehouses: List[str] = []
     menus: Dict[str, Any] = {}
     status: str = "active"
+    company_no: Optional[str] = None
 
 class UserUpdate(_Base):
     email: Optional[str] = None
@@ -44,6 +45,7 @@ class UserUpdate(_Base):
     menus: Optional[Dict[str, Any]] = None
     status: Optional[str] = None
     password: Optional[str] = None
+    company_no: Optional[str] = None
 
 class ChangePasswordRequest(_Base):
     old_password: str
@@ -58,6 +60,7 @@ class UserOut(_Base):
     warehouses: List[str] = []
     menus: Dict[str, Any] = {}
     status: str
+    company_no: Optional[str] = None
     last_login: Optional[datetime] = None
 
 
@@ -70,19 +73,32 @@ class WarehouseCreate(_Base):
     name_th: Optional[str] = None
     location: Optional[str] = None
     province: Optional[str] = None
+    address: Optional[str] = None
     phone: Optional[str] = None
     manager_name: Optional[str] = None
     companyNo: Optional[str] = "COMP-001"
     icon: Optional[str] = "🏭"
+    wh_type: Optional[str] = "General"
+    zones: Optional[int] = 0
+    staff: Optional[int] = 0
+    capacity: Optional[float] = 0
+    used: Optional[float] = 0
     active: bool = True
 
 class WarehouseUpdate(_Base):
     name: Optional[str] = None
     name_th: Optional[str] = None
     location: Optional[str] = None
+    province: Optional[str] = None
+    address: Optional[str] = None
     phone: Optional[str] = None
     manager_name: Optional[str] = None
     icon: Optional[str] = None
+    wh_type: Optional[str] = None
+    zones: Optional[int] = None
+    staff: Optional[int] = None
+    capacity: Optional[float] = None
+    used: Optional[float] = None
     active: Optional[bool] = None
 
 class WarehouseOut(_Base):
@@ -91,9 +107,16 @@ class WarehouseOut(_Base):
     name: str
     name_th: Optional[str] = None
     location: Optional[str] = None
+    province: Optional[str] = None
+    address: Optional[str] = None
     active: bool = True
     icon: Optional[str] = "🏭"
     companyNo: Optional[str] = "COMP-001"
+    wh_type: Optional[str] = "General"
+    zones: Optional[int] = 0
+    staff: Optional[int] = 0
+    capacity: Optional[float] = 0
+    used: Optional[float] = 0
 
 
 # ══════════════════════════════════════════════════════════════
@@ -111,6 +134,9 @@ class CustomerCreate(_Base):
     tax_id: Optional[str] = None
     credit_limit: float = 0
     payment_terms: Optional[str] = None
+    logo: Optional[str] = None
+    credit_days: int = 30
+    company_no: Optional[str] = None
     status: str = "active"
 
 class CustomerUpdate(_Base):
@@ -122,6 +148,9 @@ class CustomerUpdate(_Base):
     address: Optional[str] = None
     tax_id: Optional[str] = None
     credit_limit: Optional[float] = None
+    logo: Optional[str] = None
+    credit_days: Optional[int] = None
+    company_no: Optional[str] = None
     status: Optional[str] = None
 
 class CustomerOut(_Base):
@@ -135,6 +164,8 @@ class CustomerOut(_Base):
     address: Optional[str] = None
     tax_id: Optional[str] = None
     credit_limit: float = 0
+    logo: Optional[str] = None
+    credit_days: int = 30
     status: str = "active"
 
 
@@ -299,6 +330,29 @@ class PutawayCreate(_Base):
     grNumber: Optional[str] = None
     batNumber: Optional[str] = None
     lotNumber: Optional[str] = None
+
+
+# ══════════════════════════════════════════════════════════════
+# Packing
+# ══════════════════════════════════════════════════════════════
+class PackingItemCreate(_Base):
+    sku: str
+    productName: str
+    barcode: Optional[str] = None
+    toPack: float
+    unit: str = "PCS"
+    batNumber: Optional[str] = None
+    lotNumber: Optional[str] = None
+
+class PackingCreate(_Base):
+    customer: str
+    warehouse: str
+    pickingId: Optional[int] = None
+    salesOrderId: Optional[int] = None
+    items: List[PackingItemCreate] = []
+
+class PackingConfirm(_Base):
+    items: List[Dict[str, Any]] = []
 
 
 # ══════════════════════════════════════════════════════════════

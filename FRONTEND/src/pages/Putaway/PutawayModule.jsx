@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
+import { customerApi } from '../../services/api';
 import { MAIN_UNIT_GROUPS, SUB_UNIT_GROUPS } from '../../constants/units';
 import { ZONES, ZONE_OPTIONS, locationToZone } from '../../constants/zones';
 import * as XLSX from 'xlsx';
@@ -53,12 +54,19 @@ const initData = [
   },
 ];
 
-function PutawayModule({ records, setRecords, inventory, setInventory }) {
+function PutawayModule({ records, setRecords, inventory, setInventory, currentUser }) {
   const { i18n } = useTranslation();
   const [activeTab, setActiveTab]     = useState('list');
   const [showModal, setShowModal]     = useState(false);
   const [editId, setEditId]           = useState(null);
   const [form, setForm]               = useState(makeEmptyForm);
+
+  const [custList, setCustList] = useState([]);
+  useEffect(() => {
+    customerApi.list(currentUser?.companyNo).then(data => {
+      if (Array.isArray(data)) setCustList(data.map(c => c.name).filter(Boolean));
+    }).catch(() => {});
+  }, [currentUser?.companyNo]);
   const [formError, setFormError]     = useState('');
   const [deleteId, setDeleteId]       = useState(null);
   const [scanInput, setScanInput]     = useState('');
@@ -66,7 +74,7 @@ function PutawayModule({ records, setRecords, inventory, setInventory }) {
   const [filterStatus, setFilterStatus] = useState('ALL');
   const [zoneFilter,   setZoneFilter]   = useState('');
 
-  const currentUser = localStorage.getItem('currentUser') || 'Operator';
+  const currentUserName = currentUser?.name || localStorage.getItem('currentUser') || 'Operator';
 
   const downloadTemplate = () => {
     const headers = ['PA Number','GR Number','Product Name','Barcode','Customer','From Location','To Location','Qty','Main Unit','Sub Unit','BAT No.','Lot No.','MFG Date (YYYY-MM-DD)','Expiry Date (YYYY-MM-DD)','Assigned To','Status'];
@@ -79,7 +87,7 @@ function PutawayModule({ records, setRecords, inventory, setInventory }) {
 
   const openCreate = () => {
     const nextNum = String(records.length + 1).padStart(4, '0');
-    setForm({ ...makeEmptyForm(), paNumber: `PA-2026-${nextNum}`, date: new Date().toISOString().slice(0, 10), assignedTo: currentUser });
+    setForm({ ...makeEmptyForm(), paNumber: `PA-2026-${nextNum}`, date: new Date().toISOString().slice(0, 10), assignedTo: currentUserName });
     setEditId(null);
     setFormError('');
     setShowModal(true);
@@ -408,7 +416,10 @@ function PutawayModule({ records, setRecords, inventory, setInventory }) {
               {/* Customer */}
               <div className="rcv-form-group">
                 <label>Customer <span style={{ color: '#FF6B6B' }}>*</span></label>
-                <input type="text" value={form.customer} onChange={e => { setForm(p => ({ ...p, customer: e.target.value })); setFormError(''); }} placeholder="Customer name" />
+                <select value={form.customer} onChange={e => { setForm(p => ({ ...p, customer: e.target.value })); setFormError(''); }}>
+                  <option value="">-- เลือก Customer --</option>
+                  {custList.map(c => <option key={c} value={c}>{c}</option>)}
+                </select>
               </div>
 
               {/* From / To Location */}

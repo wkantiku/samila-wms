@@ -30,6 +30,7 @@ def login(request: LoginRequest, db: Session = Depends(get_db)):
             "warehouses": user.warehouses or [],
             "menus": user.menus or {},
             "status": user.status,
+            "companyNo": user.company_no or "",
             "lastLogin": user.last_login.isoformat() if user.last_login else "-",
         },
     }
@@ -51,4 +52,5 @@ def get_me(current_user: User = Depends(require_user)):
         "warehouses": current_user.warehouses or [],
         "menus": current_user.menus or {},
         "status": current_user.status,
+        "companyNo": current_user.company_no or "",
     }

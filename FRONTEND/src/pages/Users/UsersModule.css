@@ -102,6 +102,16 @@
   overflow: hidden;
 }
 .modal-sm { max-width: 400px; }
+.modal-user {
+  max-width: 700px;
+  max-height: 92vh;
+  display: flex;
+  flex-direction: column;
+}
+.modal-user .modal-body {
+  overflow-y: auto;
+  flex: 1;
+}
 
 .modal-header {
   display: flex; align-items: center; justify-content: space-between;
@@ -212,6 +222,90 @@
 .wh-checkbox-item.checked { border-color: rgba(0,188,212,0.5); background: rgba(0,188,212,0.12); color: #00E5FF; }
 .wh-checkbox-item.wh-all-item.checked { border-color: rgba(255,215,0,0.5); background: rgba(255,215,0,0.1); color: #FFD700; }
 .wh-checkbox-item input[type="checkbox"] { accent-color: #00BCD4; width: 13px; height: 13px; cursor: pointer; }
+
+/* ── Permission Table (new vertical layout) ── */
+.perm-section { margin-top: 18px; }
+
+.perm-section-header {
+  display: flex; align-items: center; gap: 8px; margin-bottom: 8px;
+}
+.perm-section-title { font-weight: 700; color: #00E5FF; font-size: 13px; flex: 1; }
+.perm-section-count { font-size: 11px; color: #5a8fa8; }
+.perm-all-btn {
+  font-size: 11px; padding: 3px 10px; border-radius: 6px;
+  background: rgba(0,204,136,0.15); border: 1px solid rgba(0,204,136,0.4);
+  color: #00CC88; cursor: pointer;
+}
+.perm-clear-btn {
+  font-size: 11px; padding: 3px 10px; border-radius: 6px;
+  background: rgba(255,107,107,0.12); border: 1px solid rgba(255,107,107,0.35);
+  color: #FF6B6B; cursor: pointer;
+}
+
+.perm-table {
+  border: 1px solid rgba(0,188,212,0.15); border-radius: 8px;
+  overflow: hidden;
+}
+
+.perm-row {
+  display: grid;
+  grid-template-columns: 1fr 52px 52px 52px 64px;
+  align-items: center;
+  border-bottom: 1px solid rgba(255,255,255,0.04);
+  transition: background 0.15s;
+}
+.perm-row:last-child { border-bottom: none; }
+
+.perm-row-head {
+  background: rgba(0,188,212,0.08);
+  border-bottom: 1px solid rgba(0,188,212,0.18) !important;
+}
+.perm-row-head .perm-col-menu,
+.perm-row-head .perm-col-cb {
+  font-size: 10px; font-weight: 700; color: #5a8fa8;
+  text-transform: uppercase; letter-spacing: 0.5px;
+  padding: 8px 10px;
+}
+
+.perm-row-on { background: rgba(0,229,255,0.04); }
+.perm-row:not(.perm-row-head):hover { background: rgba(0,188,212,0.07); }
+
+.perm-col-menu {
+  display: flex; align-items: center; gap: 8px;
+  padding: 9px 12px; cursor: pointer; user-select: none;
+  font-size: 12.5px; color: #7aafc8;
+}
+.perm-row-on .perm-col-menu { color: #cce4ef; }
+
+.perm-view-dot {
+  width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
+  background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2);
+  transition: all 0.15s;
+}
+.perm-view-dot.on { background: #00CC88; border-color: #00CC88; box-shadow: 0 0 6px rgba(0,204,136,0.5); }
+
+.perm-menu-name { font-size: 12.5px; }
+
+.perm-col-cb {
+  display: flex; align-items: center; justify-content: center;
+  padding: 9px 4px;
+}
+.perm-col-cb input[type="checkbox"] {
+  width: 15px; height: 15px; cursor: pointer;
+  accent-color: #00BCD4;
+}
+.perm-col-cb input[type="checkbox"]:disabled {
+  opacity: 0.25; cursor: not-allowed;
+}
+
+/* Save button (missing from original) */
+.save-btn {
+  padding: 9px 18px;
+  background: linear-gradient(135deg, #00A8CC, #0087B3);
+  color: white; border: none; border-radius: 6px;
+  font-size: 13px; font-weight: 700; cursor: pointer;
+}
+.save-btn:hover { box-shadow: 0 4px 14px rgba(0,168,204,0.4); }
 
 /* Warehouse chips in table */
 .wh-chips { display: flex; flex-wrap: wrap; gap: 4px; }

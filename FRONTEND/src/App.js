@@ -1,5 +1,5 @@
 // src/App.js - Updated with Login + Warehouse Select
-import React, { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { LogoHeader, SamilaLogo } from './components/Logo/SamilaLogo';
 import LoginPage from './pages/Login/LoginPage';
@@ -19,8 +19,10 @@ import SuperAdminModule from './pages/SuperAdmin/SuperAdminModule';
 import KPIModule from './pages/KPI/KPIModule';
 import PutawayModule from './pages/Putaway/PutawayModule';
 import OrderModule from './pages/Order/OrderModule';
+import PackingModule from './pages/Packing/PackingModule';
 import CSModule from './pages/CS/CSModule';
 import MobileModule from './pages/Mobile/MobileModule';
+import WarehouseSettingModule from './pages/Warehouse/WarehouseSettingModule';
 import { INIT_INVENTORY } from './constants/inventoryData';
 import { ToastProvider } from './components/Toast/Toast';
 import ErrorBoundary from './components/ErrorBoundary/ErrorBoundary';
@@ -33,7 +35,7 @@ import './App.css';
 // NOTE: In production, authentication must be handled by the backend (JWT).
 // Passwords below are intentionally minimal — the real auth endpoint validates them.
 const _allOn = () => Object.fromEntries([
-  'dashboard','receiving','inventory','product','picking','putaway','shipping',
+  'dashboard','receiving','inventory','product','picking','putaway','packing','shipping',
   'tarif','customer','reports','kpi','mobile','users','warehouse-setting','user-limit','settings'
 ].map(k => [k, true]));
 
@@ -86,6 +88,12 @@ function App() {
   const [backendData, setBackendData] = useState(null);
   const [apiData, setApiData] = useState(null);
   const [activeMenu, setActiveMenu] = useState('dashboard');
+  const [customerInitFilter, setCustomerInitFilter] = useState('');
+
+  const navigateToCustomer = (companyNo = '') => {
+    setCustomerInitFilter(companyNo);
+    setActiveMenu('customer');
+  };
 
   // Warehouse switcher dropdown
   const [showWhDropdown, setShowWhDropdown] = useState(false);
@@ -265,6 +273,7 @@ function App() {
           id: u.id, username: u.username, name: u.name, email: u.email,
           role: u.role, warehouses: u.warehouses || [], menus: u.menus || {},
           status: u.status, lastLogin: u.lastLogin || '-',
+          companyNo: u.companyNo || '',
           password: '(API)', // placeholder — real auth via API
         })));
       }
@@ -506,6 +515,15 @@ function App() {
                 </li>
                 <li>
                   <a
+                    href="#packing"
+                    className={`nav-link ${activeMenu === 'packing' ? 'active' : ''}`}
+                    onClick={() => setActiveMenu('packing')}
+                  >
+                    📦 Packing
+                  </a>
+                </li>
+                <li>
+                  <a
                     href="#shipping"
                     className={`nav-link ${activeMenu === 'shipping' ? 'active' : ''}`}
                     onClick={() => setActiveMenu('shipping')}
@@ -566,6 +584,17 @@ function App() {
             <div className="nav-section">
               <h3 className="nav-title">{t('menu.settings') || 'Settings'}</h3>
               <ul className="nav-list">
+                {(currentUser?.role === 'admin_customer' || currentUser?.menus?.['warehouse-setting'] !== false) && currentUser?.role !== 'superadmin' && (
+                  <li>
+                    <a
+                      href="#warehouse-setting"
+                      className={`nav-link ${activeMenu === 'warehouse-setting' ? 'active' : ''}`}
+                      onClick={() => setActiveMenu('warehouse-setting')}
+                    >
+                      🏭 Warehouse
+                    </a>
+                  </li>
+                )}
                 <li>
                   <a
                     href="#users"
@@ -606,25 +635,27 @@ function App() {
 
           {/* Dynamic Page Rendering */}
           {activeMenu === 'dashboard'  && <ErrorBoundary name="Dashboard"><Dashboard /></ErrorBoundary>}
-          {activeMenu === 'receiving'  && <ErrorBoundary name="Receiving"><ReceivingModule onReceive={handleReceive} onPutaway={handlePutaway} receivingOrders={receivingOrders} setReceivingOrders={setReceivingOrders} /></ErrorBoundary>}
-          {activeMenu === 'inventory'  && <ErrorBoundary name="Inventory"><InventoryModule inventory={inventory} setInventory={setInventory} /></ErrorBoundary>}
-          {activeMenu === 'product'    && <ErrorBoundary name="Product"><ProductModule /></ErrorBoundary>}
-          {activeMenu === 'picking'    && <ErrorBoundary name="Picking"><PickingModule inventory={inventory} setInventory={setInventory} pickingOrders={pickingOrders} setPickingOrders={setPickingOrders} /></ErrorBoundary>}
-          {activeMenu === 'shipping'   && <ErrorBoundary name="Shipping"><ShippingModule /></ErrorBoundary>}
-          {activeMenu === 'tarif'      && <ErrorBoundary name="Tarif Management"><TarifManagement /></ErrorBoundary>}
-          {activeMenu === 'customer'   && <ErrorBoundary name="Customer"><CustomerModule /></ErrorBoundary>}
-          {activeMenu === 'reports'    && <ErrorBoundary name="Reports"><ReportsModule inventory={inventory} receivingOrders={receivingOrders} putawayRecords={putawayRecords} pickingOrders={pickingOrders} salesOrders={salesOrders} csCases={csCases} /></ErrorBoundary>}
-          {activeMenu === 'users'      && <ErrorBoundary name="Users"><UsersModule users={sharedUsers} setUsers={setSharedUsers} /></ErrorBoundary>}
+          {activeMenu === 'receiving'  && <ErrorBoundary name="Receiving"><ReceivingModule onReceive={handleReceive} onPutaway={handlePutaway} receivingOrders={receivingOrders} setReceivingOrders={setReceivingOrders} currentUser={currentUser} /></ErrorBoundary>}
+          {activeMenu === 'inventory'  && <ErrorBoundary name="Inventory"><InventoryModule inventory={inventory} setInventory={setInventory} currentUser={currentUser} /></ErrorBoundary>}
+          {activeMenu === 'product'    && <ErrorBoundary name="Product"><ProductModule currentUser={currentUser} /></ErrorBoundary>}
+          {activeMenu === 'picking'    && <ErrorBoundary name="Picking"><PickingModule inventory={inventory} setInventory={setInventory} pickingOrders={pickingOrders} setPickingOrders={setPickingOrders} currentUser={currentUser} /></ErrorBoundary>}
+          {activeMenu === 'packing'    && <ErrorBoundary name="Packing"><PackingModule pickingOrders={pickingOrders} currentUser={currentUser} /></ErrorBoundary>}
+          {activeMenu === 'shipping'   && <ErrorBoundary name="Shipping"><ShippingModule currentUser={currentUser} /></ErrorBoundary>}
+          {activeMenu === 'tarif'      && <ErrorBoundary name="Tarif Management"><TarifManagement currentUser={currentUser} /></ErrorBoundary>}
+          {activeMenu === 'customer'   && <ErrorBoundary name="Customer"><CustomerModule currentUser={currentUser} initCompanyFilter={customerInitFilter} /></ErrorBoundary>}
+          {activeMenu === 'reports'    && <ErrorBoundary name="Reports"><ReportsModule inventory={inventory} receivingOrders={receivingOrders} putawayRecords={putawayRecords} pickingOrders={pickingOrders} salesOrders={salesOrders} csCases={csCases} currentUser={currentUser} /></ErrorBoundary>}
+          {activeMenu === 'users'      && <ErrorBoundary name="Users"><UsersModule users={sharedUsers} setUsers={setSharedUsers} currentUser={currentUser} /></ErrorBoundary>}
           {activeMenu === 'settings'   && <ErrorBoundary name="Settings"><SettingsModule /></ErrorBoundary>}
-          {activeMenu === 'superadmin' && currentUser?.role === 'superadmin' && <ErrorBoundary name="Super Admin"><SuperAdminModule currentUser={currentUser} users={sharedUsers} setUsers={setSharedUsers} /></ErrorBoundary>}
+          {activeMenu === 'superadmin' && currentUser?.role === 'superadmin' && <ErrorBoundary name="Super Admin"><SuperAdminModule currentUser={currentUser} users={sharedUsers} setUsers={setSharedUsers} navigateToCustomer={navigateToCustomer} /></ErrorBoundary>}
           {activeMenu === 'kpi'        && <ErrorBoundary name="KPI"><KPIModule /></ErrorBoundary>}
-          {activeMenu === 'putaway'    && <ErrorBoundary name="Putaway"><PutawayModule records={putawayRecords} setRecords={setPutawayRecords} inventory={inventory} setInventory={setInventory} /></ErrorBoundary>}
-          {activeMenu === 'order'      && <ErrorBoundary name="Order"><OrderModule orders={salesOrders} setOrders={setSalesOrders} inventory={inventory} /></ErrorBoundary>}
-          {activeMenu === 'cs'         && <ErrorBoundary name="Customer Service"><CSModule cases={csCases} setCases={setCsCases} /></ErrorBoundary>}
+          {activeMenu === 'putaway'    && <ErrorBoundary name="Putaway"><PutawayModule records={putawayRecords} setRecords={setPutawayRecords} inventory={inventory} setInventory={setInventory} currentUser={currentUser} /></ErrorBoundary>}
+          {activeMenu === 'order'      && <ErrorBoundary name="Order"><OrderModule orders={salesOrders} setOrders={setSalesOrders} inventory={inventory} currentUser={currentUser} /></ErrorBoundary>}
+          {activeMenu === 'cs'         && <ErrorBoundary name="Customer Service"><CSModule cases={csCases} setCases={setCsCases} currentUser={currentUser} /></ErrorBoundary>}
+          {activeMenu === 'warehouse-setting' && currentUser?.role !== 'superadmin' && <ErrorBoundary name="Warehouse Setting"><WarehouseSettingModule currentUser={currentUser} /></ErrorBoundary>}
           {activeMenu === 'mobile' && currentUser?.menus?.mobile !== false && <ErrorBoundary name="Mobile Worker"><MobileModule inventory={inventory} setInventory={setInventory} pickingOrders={pickingOrders} setPickingOrders={setPickingOrders} putawayRecords={putawayRecords} setPutawayRecords={setPutawayRecords} onReceive={handleReceive} currentUser={currentUser} /></ErrorBoundary>}
 
           {/* Default home content (hidden when module active) */}
-          {!['dashboard','receiving','inventory','product','picking','putaway','order','cs','shipping','tarif','customer','reports','users','settings','superadmin','kpi','mobile'].includes(activeMenu) && (
+          {!['dashboard','receiving','inventory','product','picking','packing','putaway','order','cs','shipping','tarif','customer','reports','users','settings','superadmin','kpi','mobile','warehouse-setting'].includes(activeMenu) && (
           <><section className="status-section">
             <div className="status-card backend-status">
               <div className="card-header">

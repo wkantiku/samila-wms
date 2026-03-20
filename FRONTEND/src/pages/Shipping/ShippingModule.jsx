@@ -5,11 +5,10 @@ import { shippingApi } from '../../services/api';
 
 function ShippingModule() {
   const { t, i18n } = useTranslation();
-  const [weightUnit, setWeightUnit] = useState('KG');
   const [items, setItems] = useState([
     { id: 1, entryNumber: 'EN-2026-0001', sku: 'SKU001', quantity: 100, box: 'BOX001', unit: 'PCS' }
   ]);
-  const [form, setForm] = useState({ soNumber: '', carrier: '', tracking: '', weight: '', delivery: '' });
+  const [form, setForm] = useState({ soNumber: '', carrier: '', tracking: '', delivery: '' });
   const [submitting, setSubmitting] = useState(false);
   const [notify, setNotify] = useState(null);
 
@@ -26,9 +25,9 @@ function ShippingModule() {
     if (!form.carrier.trim())  { showNotify('กรุณากรอก Carrier', 'error'); return; }
     setSubmitting(true);
     try {
-      await shippingApi.ship({ ...form, weight: Number(form.weight), weightUnit, items });
+      await shippingApi.ship({ ...form, items });
       showNotify(`จัดส่งสำเร็จ — ${form.soNumber}`);
-      setForm({ soNumber: '', carrier: '', tracking: '', weight: '', delivery: '' });
+      setForm({ soNumber: '', carrier: '', tracking: '', delivery: '' });
     } catch (err) {
       showNotify(err.message || 'เกิดข้อผิดพลาด', 'error');
     } finally {
@@ -92,20 +91,6 @@ function ShippingModule() {
               <div className="form-group" style={{marginBottom:0}}>
                 <label>{t('shipping.tracking')}</label>
                 <input type="text" placeholder="TRACK123456" value={form.tracking} onChange={setField('tracking')} />
-              </div>
-              <div className="form-group" style={{marginBottom:0}}>
-                <label>{t('shipping.weight')}</label>
-                <div style={{display:'flex',gap:6}}>
-                  <input type="number" placeholder="0" style={{width:90}} value={form.weight} onChange={setField('weight')} />
-                  <select value={weightUnit} onChange={e => setWeightUnit(e.target.value)} style={unitSelectStyle}>
-                    <optgroup label={t('shipping.weightUnitGroup')}>
-                      <option value="G">g – กรัม</option>
-                      <option value="KG">kg – กิโลกรัม</option>
-                      <option value="TON">ton – ตัน</option>
-                      <option value="LB">lb – ปอนด์</option>
-                    </optgroup>
-                  </select>
-                </div>
               </div>
             </div>
             <div className="form-group" style={{maxWidth:640,marginTop:12}}>
