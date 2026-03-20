@@ -6,15 +6,13 @@ import {
   View, Text, TextInput, TouchableOpacity,
   ScrollView, Alert, StyleSheet, ActivityIndicator,
 } from 'react-native';
-import { useCameraPermissions } from 'expo-camera';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useTranslation } from 'react-i18next';
 import { API } from '../config/api';
-import { S, COLORS, Header, PermissionScreen, ScannerModal } from './shared';
+import { S, COLORS, Header, ScannerModal } from './shared';
 
 export default function StockCountScreen() {
   const { t, i18n } = useTranslation();
-  const [permission, requestPermission] = useCameraPermissions();
   const [countId,   setCountId]   = useState('');
   const [location,  setLocation]  = useState('');
   const [barcode,   setBarcode]   = useState('');
@@ -109,10 +107,6 @@ export default function StockCountScreen() {
     setCountId(''); setLocation(''); setBarcode(''); setCountedQty('');
     setCountRows([]); setStep(1);
   };
-
-  if (!permission?.granted) {
-    return <PermissionScreen onGrant={requestPermission} t={t} />;
-  }
 
   return (
     <View style={S.screen}>

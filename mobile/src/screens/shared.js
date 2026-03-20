@@ -2,7 +2,6 @@
  * Shared styles, colors, and components used by all 5 WMS screens.
  */
 import { View, Text, TouchableOpacity, StyleSheet, StatusBar } from 'react-native';
-import { CameraView } from 'expo-camera';
 
 // ─── Color Palette ───────────────────────────────────────────────────────────
 export const COLORS = {
@@ -88,30 +87,12 @@ export function Header({ title, subtitle, lang, onToggleLang }) {
   );
 }
 
-// ─── Camera Permission Screen ─────────────────────────────────────────────────
-export function PermissionScreen({ onGrant, t }) {
-  return (
-    <View style={[S.screen, { justifyContent: 'center', alignItems: 'center', padding: 32 }]}>
-      <Text style={{ fontSize: 48, marginBottom: 16 }}>📷</Text>
-      <Text style={{ color: COLORS.text, textAlign: 'center', fontSize: 15, marginBottom: 24 }}>
-        {t('common.permissionCamera')}
-      </Text>
-      <TouchableOpacity style={[S.btn, S.btnPrimary, { paddingHorizontal: 32 }]} onPress={onGrant}>
-        <Text style={S.btnText}>{t('common.grantPermission')}</Text>
-      </TouchableOpacity>
-    </View>
-  );
-}
-
-// ─── Inline Scanner Overlay ───────────────────────────────────────────────────
-export function ScannerModal({ visible, onScan, onClose }) {
+// ─── Scanner (manual input — camera added later) ──────────────────────────────
+export function ScannerModal({ visible, onClose }) {
   if (!visible) return null;
   return (
     <View style={scanner.container}>
-      <CameraView style={scanner.camera} onBarcodeScanned={onScan} />
-      {/* Aim crosshair */}
-      <View style={scanner.crossH} />
-      <View style={scanner.crossV} />
+      <Text style={scanner.placeholder}>📷 สแกน Barcode{'\n'}(กรอก Barcode ด้านล่าง)</Text>
       <TouchableOpacity style={scanner.closeBtn} onPress={onClose}>
         <Text style={scanner.closeText}>✕ ปิด</Text>
       </TouchableOpacity>
@@ -130,10 +111,8 @@ export function StatusBadge({ status }) {
 }
 
 const scanner = StyleSheet.create({
-  container: { height: 240, borderRadius: 12, overflow: 'hidden', marginBottom: 12, position: 'relative', backgroundColor: '#000' },
-  camera:    { flex: 1 },
-  crossH:    { position: 'absolute', top: '50%', left: '20%', right: '20%', height: 2, backgroundColor: 'rgba(0,229,255,0.7)' },
-  crossV:    { position: 'absolute', left: '50%', top: '20%', bottom: '20%', width: 2, backgroundColor: 'rgba(0,229,255,0.7)' },
-  closeBtn:  { position: 'absolute', bottom: 12, alignSelf: 'center', backgroundColor: 'rgba(0,0,0,0.7)', paddingHorizontal: 24, paddingVertical: 8, borderRadius: 20 },
-  closeText: { color: '#fff', fontWeight: '700', fontSize: 13 },
+  container:   { height: 120, borderRadius: 12, marginBottom: 12, backgroundColor: '#0a1e33', borderWidth: 1, borderColor: COLORS.border, justifyContent: 'center', alignItems: 'center' },
+  placeholder: { color: COLORS.textSub, fontSize: 14, textAlign: 'center', lineHeight: 22 },
+  closeBtn:    { marginTop: 12, backgroundColor: 'rgba(0,229,255,0.1)', paddingHorizontal: 24, paddingVertical: 8, borderRadius: 20 },
+  closeText:   { color: COLORS.cyan, fontWeight: '700', fontSize: 13 },
 });

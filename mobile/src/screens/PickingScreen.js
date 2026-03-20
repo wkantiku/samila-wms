@@ -6,11 +6,10 @@ import {
   View, Text, TextInput, TouchableOpacity,
   ScrollView, Alert, StyleSheet, ActivityIndicator,
 } from 'react-native';
-import { useCameraPermissions } from 'expo-camera';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useTranslation } from 'react-i18next';
 import { API } from '../config/api';
-import { S, COLORS, Header, PermissionScreen, ScannerModal } from './shared';
+import { S, COLORS, Header, ScannerModal } from './shared';
 
 // Demo pick lists (replace with API call in production)
 const DEMO_PICKS = {
@@ -35,7 +34,6 @@ const DEMO_PICKS = {
 
 export default function PickingScreen() {
   const { t, i18n } = useTranslation();
-  const [permission, requestPermission] = useCameraPermissions();
   const [pickNumber, setPickNumber] = useState('');
   const [pickData,   setPickData]   = useState(null);
   const [scanning,   setScanning]   = useState(false);
@@ -101,17 +99,13 @@ export default function PickingScreen() {
   const doComplete = async () => {
     setLoading(true);
     try {
-      await fetch(API.pickingComplete(pickData.id), { method: 'POST' });
+      await fetch(API.pickingConfirm(pickData.id), { method: 'POST' });
     } catch { /* offline ok */ }
     Alert.alert(t('common.success'), `${pickData.id} ✅`);
     setPickData(null);
     setPickNumber('');
     setLoading(false);
   };
-
-  if (!permission?.granted) {
-    return <PermissionScreen onGrant={requestPermission} t={t} />;
-  }
 
   const pickedCount = pickData?.items.filter(i => i.picked >= i.toPick).length ?? 0;
   const totalCount  = pickData?.items.length ?? 0;

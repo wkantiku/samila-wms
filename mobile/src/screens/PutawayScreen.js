@@ -6,22 +6,19 @@ import {
   View, Text, TextInput, TouchableOpacity,
   ScrollView, Alert, StyleSheet, ActivityIndicator,
 } from 'react-native';
-import { useCameraPermissions } from 'expo-camera';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useTranslation } from 'react-i18next';
 import { API } from '../config/api';
-import { S, COLORS, Header, PermissionScreen, ScannerModal, StatusBadge } from './shared';
+import { S, COLORS, Header, ScannerModal, StatusBadge } from './shared';
 
-// Demo task list (replace with API call in production)
 const DEMO_TASKS = [
-  { id: 1, paNumber: 'PA-2026-0001', grNumber: 'GR-2026-0001', sku: 'SKU-001', barcode: '8850000001', customer: 'Nayong Hospital',  qty: 50,  unit: 'PCS', fromLocation: 'RECEIVING', toLocation: 'A-01-1', status: 'PENDING'     },
-  { id: 2, paNumber: 'PA-2026-0002', grNumber: 'GR-2026-0002', sku: 'SKU-002', barcode: '8850000002', customer: 'ThaiBev Co.',      qty: 120, unit: 'PCS', fromLocation: 'RECEIVING', toLocation: 'B-02-1', status: 'IN_PROGRESS'  },
-  { id: 3, paNumber: 'PA-2026-0003', grNumber: 'GR-2026-0003', sku: 'SKU-003', barcode: '8850000003', customer: 'SCG Logistics',    qty: 30,  unit: 'KG',  fromLocation: 'RECEIVING', toLocation: 'C-01-2', status: 'PENDING'     },
+  { id: 1, paNumber: 'PA-2026-0001', grNumber: 'GR-2026-0001', sku: 'SKU-001', barcode: '8850000001', customer: 'Nayong Hospital', qty: 50,  unit: 'PCS', fromLocation: 'RECEIVING', toLocation: 'A-01-1', status: 'PENDING'    },
+  { id: 2, paNumber: 'PA-2026-0002', grNumber: 'GR-2026-0002', sku: 'SKU-002', barcode: '8850000002', customer: 'ThaiBev Co.',     qty: 120, unit: 'PCS', fromLocation: 'RECEIVING', toLocation: 'B-02-1', status: 'IN_PROGRESS' },
+  { id: 3, paNumber: 'PA-2026-0003', grNumber: 'GR-2026-0003', sku: 'SKU-003', barcode: '8850000003', customer: 'SCG Logistics',   qty: 30,  unit: 'KG',  fromLocation: 'RECEIVING', toLocation: 'C-01-2', status: 'PENDING'    },
 ];
 
 export default function PutawayScreen() {
   const { t, i18n } = useTranslation();
-  const [permission, requestPermission] = useCameraPermissions();
   const [tasks,    setTasks]    = useState(DEMO_TASKS);
   const [scanInput, setScanInput] = useState('');
   const [result,    setResult]    = useState(null);
@@ -61,17 +58,13 @@ export default function PutawayScreen() {
   const doComplete = async () => {
     setLoading(true);
     try {
-      await fetch(API.putawayComplete(result.id), { method: 'POST' });
+      await fetch(API.putawayConfirm(result.id), { method: 'POST' });
     } catch { /* offline — update locally */ }
     setTasks(prev => prev.map(r => r.id === result.id ? { ...r, status: 'COMPLETE' } : r));
     setResult(prev => ({ ...prev, status: 'COMPLETE' }));
     Alert.alert(t('common.success'), `${result.paNumber} ✅`);
     setLoading(false);
   };
-
-  if (!permission?.granted) {
-    return <PermissionScreen onGrant={requestPermission} t={t} />;
-  }
 
   const pendingCount = tasks.filter(r => r.status === 'PENDING' || r.status === 'IN_PROGRESS').length;
   const doneCount    = tasks.filter(r => r.status === 'COMPLETE').length;

@@ -3,15 +3,13 @@ import {
   View, Text, TextInput, TouchableOpacity,
   ScrollView, Alert, StyleSheet, ActivityIndicator,
 } from 'react-native';
-import { CameraView, useCameraPermissions } from 'expo-camera';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useTranslation } from 'react-i18next';
 import { API } from '../config/api';
-import { S, COLORS, Header, PermissionScreen, ScannerModal } from './shared';
+import { S, COLORS, Header, ScannerModal } from './shared';
 
 export default function ReceivingScreen() {
   const { t, i18n } = useTranslation();
-  const [permission, requestPermission] = useCameraPermissions();
   const [grNumber,     setGrNumber]     = useState('');
   const [barcode,      setBarcode]      = useState('');
   const [quantity,     setQuantity]     = useState('');
@@ -68,7 +66,7 @@ export default function ReceivingScreen() {
   const doSubmit = async () => {
     setLoading(true);
     try {
-      const res = await fetch(API.receivingComplete, {
+      const res = await fetch(API.receivingCreate, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ gr_id: grNumber, items }),
@@ -86,10 +84,6 @@ export default function ReceivingScreen() {
       setLoading(false);
     }
   };
-
-  if (!permission?.granted) {
-    return <PermissionScreen onGrant={requestPermission} t={t} />;
-  }
 
   return (
     <View style={S.screen}>

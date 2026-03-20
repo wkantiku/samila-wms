@@ -13,7 +13,6 @@
     "@react-navigation/bottom-tabs": "^6.5.20",
     "@react-navigation/native": "^6.1.17",
     "expo": "~51.0.0",
-    "expo-camera": "~15.0.16",
     "i18next": "^23.7.0",
     "react": "18.2.0",
     "react-i18next": "^13.5.0",
