@@ -1,0 +1,27 @@
+{
+  "version": 2,
+  "name": "samila-wms-frontend",
+  "builds": [
+    {
+      "src": "FRONTEND/package.json",
+      "use": "@vercel/static-build",
+      "config": {
+        "distDir": "build"
+      }
+    }
+  ],
+  "routes": [
+    {
+      "src": "/static/(.*)",
+      "dest": "/FRONTEND/build/static/$1"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "/FRONTEND/build/index.html"
+    }
+  ],
+  "env": {
+    "REACT_APP_SUPABASE_URL":  "@supabase_url",
+    "REACT_APP_SUPABASE_ANON": "@supabase_anon_key"
+  }
+}
