@@ -253,10 +253,12 @@ async def startup_event():
             db.add(sa)
             db.commit()
             logger.info("✅ Superadmin created")
-        elif sa.status != "active":
+        else:
+            # Always sync password + status on every startup
+            sa.hashed_password = hash_password(sa_pass)
             sa.status = "active"
             db.commit()
-            logger.info("✅ Superadmin re-activated")
+            logger.info("✅ Superadmin password synced")
         db.close()
     except Exception as e:
         logger.warning(f"Superadmin ensure skipped: {e}")
