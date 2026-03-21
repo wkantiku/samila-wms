@@ -29,6 +29,10 @@ export const API = {
   shippingStatus: (id) => `${BASE_URL}/api/shipping/${id}/status`,
 
   // ── Inventory / Stock Count ───────────────────────
-  inventoryList:       `${BASE_URL}/api/inventory`,
+  inventoryList:          `${BASE_URL}/api/inventory`,
   productBarcode: (bc) => `${BASE_URL}/api/products/barcode/${bc}`,
+  stockCountList:          `${BASE_URL}/api/stock-count`,
+  stockCountCreate:        `${BASE_URL}/api/stock-count`,
+  stockCountItem:  (id) => `${BASE_URL}/api/stock-count/${id}/items`,
+  stockCountSubmit:(id) => `${BASE_URL}/api/stock-count/${id}/submit`,
 };

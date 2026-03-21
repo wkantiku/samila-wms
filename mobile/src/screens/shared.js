@@ -1,7 +1,8 @@
 /**
  * Shared styles, colors, and components used by all 5 WMS screens.
  */
-import { View, Text, TouchableOpacity, StyleSheet, StatusBar } from 'react-native';
+import { useState } from 'react';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, StatusBar } from 'react-native';
 
 // ─── Color Palette ───────────────────────────────────────────────────────────
 export const COLORS = {
@@ -87,15 +88,46 @@ export function Header({ title, subtitle, lang, onToggleLang }) {
   );
 }
 
-// ─── Scanner (manual input — camera added later) ──────────────────────────────
-export function ScannerModal({ visible, onClose }) {
+// ─── Scanner (manual barcode input) ──────────────────────────────────────────
+export function ScannerModal({ visible, onScan, onClose }) {
+  const [input, setInput] = useState('');
+
   if (!visible) return null;
+
+  const confirm = () => {
+    const val = input.trim();
+    if (!val) return;
+    setInput('');
+    onScan && onScan({ data: val });
+  };
+
+  const handleClose = () => {
+    setInput('');
+    onClose();
+  };
+
   return (
     <View style={scanner.container}>
-      <Text style={scanner.placeholder}>📷 สแกน Barcode{'\n'}(กรอก Barcode ด้านล่าง)</Text>
-      <TouchableOpacity style={scanner.closeBtn} onPress={onClose}>
-        <Text style={scanner.closeText}>✕ ปิด</Text>
-      </TouchableOpacity>
+      <Text style={scanner.title}>📷 สแกน / กรอก Barcode</Text>
+      <TextInput
+        style={scanner.input}
+        placeholder="กรอกหรือสแกน Barcode..."
+        placeholderTextColor={COLORS.placeholder}
+        value={input}
+        onChangeText={setInput}
+        autoFocus
+        autoCapitalize="none"
+        returnKeyType="done"
+        onSubmitEditing={confirm}
+      />
+      <View style={scanner.btnRow}>
+        <TouchableOpacity style={scanner.confirmBtn} onPress={confirm}>
+          <Text style={scanner.confirmText}>✅ ยืนยัน</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={scanner.closeBtn} onPress={handleClose}>
+          <Text style={scanner.closeText}>✕ ปิด</Text>
+        </TouchableOpacity>
+      </View>
     </View>
   );
 }
@@ -111,8 +143,12 @@ export function StatusBadge({ status }) {
 }
 
 const scanner = StyleSheet.create({
-  container:   { height: 120, borderRadius: 12, marginBottom: 12, backgroundColor: '#0a1e33', borderWidth: 1, borderColor: COLORS.border, justifyContent: 'center', alignItems: 'center' },
-  placeholder: { color: COLORS.textSub, fontSize: 14, textAlign: 'center', lineHeight: 22 },
-  closeBtn:    { marginTop: 12, backgroundColor: 'rgba(0,229,255,0.1)', paddingHorizontal: 24, paddingVertical: 8, borderRadius: 20 },
-  closeText:   { color: COLORS.cyan, fontWeight: '700', fontSize: 13 },
+  container:  { borderRadius: 12, marginBottom: 12, backgroundColor: '#0a1e33', borderWidth: 1, borderColor: COLORS.border, padding: 14 },
+  title:      { color: COLORS.textSub, fontSize: 13, marginBottom: 10, textAlign: 'center' },
+  input:      { backgroundColor: COLORS.bg, borderWidth: 1, borderColor: COLORS.cyan, borderRadius: 8, paddingHorizontal: 14, paddingVertical: 12, fontSize: 15, color: COLORS.text, marginBottom: 10 },
+  btnRow:     { flexDirection: 'row', gap: 8 },
+  confirmBtn: { flex: 1, backgroundColor: '#00804d', paddingVertical: 11, borderRadius: 8, alignItems: 'center' },
+  confirmText:{ color: '#fff', fontWeight: '700', fontSize: 14 },
+  closeBtn:   { flex: 1, backgroundColor: 'rgba(255,107,107,0.15)', paddingVertical: 11, borderRadius: 8, alignItems: 'center', borderWidth: 1, borderColor: 'rgba(255,107,107,0.3)' },
+  closeText:  { color: COLORS.danger, fontWeight: '700', fontSize: 14 },
 });
