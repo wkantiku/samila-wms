@@ -4,6 +4,7 @@
   "description": "SAMILA WMS 3PL Frontend - React Application",
   "private": true,
   "dependencies": {
+    "@supabase/supabase-js": "^2.99.3",
     "axios": "^1.6.0",
     "date-fns": "^2.30.0",
     "i18next": "^23.7.0",

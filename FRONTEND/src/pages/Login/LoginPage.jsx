@@ -8,19 +8,38 @@ export default function LoginPage({ onLogin, users = [] }) {
   const [loading, setLoading]   = useState(false);
   const [showPass, setShowPass] = useState(false);
 
+  const isEmail = (v) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v);
+
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!form.username || !form.password) { setError('กรุณากรอก Username และ Password'); return; }
+    if (!form.username || !form.password) { setError('กรุณากรอก Username / Email และ Password'); return; }
     setLoading(true);
     setError('');
 
-    // Try API login first
+    const input = form.username.trim();
+
+    // ถ้าเป็น email → ลอง Supabase ก่อน
+    if (isEmail(input)) {
+      try {
+        const sbUser = await authService.loginWithSupabase(input, form.password);
+        onLogin(sbUser);
+        return;
+      } catch (sbErr) {
+        const msg = sbErr?.message || '';
+        if (!msg.toLowerCase().includes('network') && !msg.toLowerCase().includes('fetch')) {
+          setError(msg || 'Email หรือ Password ไม่ถูกต้อง');
+          setLoading(false);
+          return;
+        }
+      }
+    }
+
+    // ลอง FastAPI (username หรือ email)
     try {
-      const apiUser = await authService.login(form.username.trim(), form.password);
+      const apiUser = await authService.login(input, form.password);
       onLogin(apiUser);
       return;
     } catch (apiErr) {
-      // API not available or wrong credentials — check if it's auth error
       const msg = apiErr?.detail || apiErr?.message || '';
       if (msg && !msg.toLowerCase().includes('network') && !msg.toLowerCase().includes('timeout') && !msg.toLowerCase().includes('econnrefused')) {
         setError(msg || 'Username หรือ Password ไม่ถูกต้อง');
@@ -33,7 +52,7 @@ export default function LoginPage({ onLogin, users = [] }) {
     // Fallback: local user list
     setTimeout(() => {
       const u = users.find(u =>
-        u.username.toLowerCase() === form.username.trim().toLowerCase() &&
+        u.username.toLowerCase() === input.toLowerCase() &&
         u.password === form.password &&
         u.status === 'active'
       );
@@ -66,7 +85,7 @@ export default function LoginPage({ onLogin, users = [] }) {
                 <span className="login-input-icon">👤</span>
                 <input
                   type="text"
-                  placeholder="กรอก Username"
+                  placeholder="กรอก Username หรือ Email"
                   value={form.username}
                   onChange={e => { setForm(p => ({ ...p, username: e.target.value })); setError(''); }}
                   autoComplete="username"
