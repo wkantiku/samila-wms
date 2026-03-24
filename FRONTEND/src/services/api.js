@@ -2,7 +2,9 @@
  * Centralized API service — Samila WMS 3PL
  * Single source of truth for all backend calls.
  * Uses native fetch with timeout + retry.
+ * Fallback chain: FastAPI → Supabase → []
  */
+import { supabase } from '../config/supabase';
 
 const BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
 const DEFAULT_TIMEOUT_MS = 15000;
@@ -170,8 +172,28 @@ export const shippingApi = {
   track: (so)   => api.get(`/api/v1/wms/shipments/track/${so}`),
 };
 
+// Map Supabase snake_case → frontend camelCase (same shape as _wh_out in backend)
+const _mapSupabaseWh = (w) => ({
+  id: w.id, code: w.code,
+  name: w.name_en, name_th: w.name_th || w.name_en,
+  location: w.city || '', province: w.city || '',
+  active: w.is_active !== false, icon: w.icon || '🏭',
+  companyNo: w.company_no || 'COMP-001',
+  type: w.wh_type || 'General',
+  zones: w.zones || 0, staff: w.staff || 0,
+  capacity: w.total_capacity || 0, used: w.used_sqm || 0,
+});
+
 export const warehouseApi = {
-  list:   ()          => api.get('/api/warehouses'),
+  list: async () => {
+    try {
+      return await api.get('/api/warehouses');
+    } catch {
+      // FastAPI offline → fallback to Supabase
+      const { data } = await supabase.from('warehouses').select('*').order('id');
+      return (data || []).map(_mapSupabaseWh);
+    }
+  },
   create: (body)      => api.post('/api/warehouses', body),
   update: (id, body)  => api.put(`/api/warehouses/${id}`, body),
   toggle: (id)        => api.patch(`/api/warehouses/${id}/toggle`),
