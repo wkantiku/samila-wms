@@ -2,6 +2,24 @@ import { useState, useEffect } from 'react';
 import { warehouseApi } from '../../services/api';
 import './WarehouseSelectPage.css';
 
+// Fallback warehouses — used when both FastAPI and Supabase are unavailable
+const FALLBACK_WH = [
+  { id: 1, code: 'WH-BKK', name: 'Warehouse Bangkok',      name_th: 'คลังกรุงเทพฯ',    location: 'กรุงเทพฯ (ลาดกระบัง)', companyNo: 'COMP-001', active: true,  icon: '🏙️' },
+  { id: 2, code: 'WH-NTB', name: 'Warehouse Nonthaburi',   name_th: 'คลังนนทบุรี',      location: 'นนทบุรี (บางใหญ่)',     companyNo: 'COMP-001', active: true,  icon: '🏭' },
+  { id: 3, code: 'WH-PTN', name: 'Warehouse Pathum Thani', name_th: 'คลังปทุมธานี',     location: 'ปทุมธานี (คลองหลวง)',   companyNo: 'COMP-001', active: true,  icon: '🌿' },
+  { id: 4, code: 'WH-TRG', name: 'Warehouse Trang',        name_th: 'คลังตรัง',         location: 'ตรัง',                  companyNo: 'COMP-001', active: true,  icon: '🏥' },
+  { id: 5, code: 'WH-CNX', name: 'Warehouse Chiang Mai',   name_th: 'คลังเชียงใหม่',    location: 'เชียงใหม่ (สันกำแพง)', companyNo: 'COMP-001', active: true,  icon: '⛰️' },
+  { id: 6, code: 'WH-HYD', name: 'Warehouse Hat Yai',      name_th: 'คลังหาดใหญ่',      location: 'สงขลา (หาดใหญ่)',       companyNo: 'COMP-001', active: false, icon: '🌊' },
+];
+
+function getLocalFallback() {
+  try {
+    const cached = localStorage.getItem('wms_sa_whs');
+    if (cached) { const d = JSON.parse(cached); if (d?.length) return d; }
+  } catch {}
+  return FALLBACK_WH;
+}
+
 const getCompanyMap = () => {
   try {
     const saved = localStorage.getItem('wms_sa_companies');
@@ -32,8 +50,11 @@ export default function WarehouseSelectPage({ user, onSelect, onLogout }) {
 
   useEffect(() => {
     warehouseApi.list()
-      .then(data => { setAllWhs(data || []); })
-      .catch(() => { setAllWhs([]); })
+      .then(data => {
+        if (data && data.length > 0) { setAllWhs(data); }
+        else { setAllWhs(getLocalFallback()); }
+      })
+      .catch(() => { setAllWhs(getLocalFallback()); })
       .finally(() => setLoading(false));
   }, []);
 
